@@ -4,33 +4,83 @@ exports[`TeamCreate render() renders correctly 1`] = `
 <DocumentTitle
   title="Create Team"
 >
-  <NarryLayout>
-    <h3>
-      Create a New Team
-    </h3>
-    <p>
-      Teams group members' access to a specific focus, e.g. a major product or application that may have sub-projects.
-    </p>
-    <ApiForm
-      apiEndpoint="/organizations/org/teams/"
-      apiMethod="POST"
-      cancelLabel="Cancel"
-      className="form-stacked"
-      footerClass="form-actions align-right"
-      onSubmitSuccess={[Function]}
-      requireChanges={true}
-      submitDisabled={false}
-      submitLabel="Save Changes"
+  <div>
+    <Modal
+      animation={false}
+      autoFocus={true}
+      backdrop={true}
+      bsClass="modal"
+      dialogComponentClass={[Function]}
+      enforceFocus={true}
+      keyboard={true}
+      manager={
+        ModalManager {
+          "containers": Array [],
+          "data": Array [],
+          "handleContainerOverflow": true,
+          "hideSiblingNodes": true,
+          "modals": Array [],
+        }
+      }
+      onHide={[Function]}
+      renderBackdrop={[Function]}
+      restoreFocus={true}
+      show={false}
     >
-      <TextField
-        disabled={false}
-        hideErrorMessage={false}
-        label="Team Name"
-        name="name"
-        placeholder="e.g. Operations, Web, Desktop"
-        required={true}
-      />
-    </ApiForm>
-  </NarryLayout>
+      <div
+        className="modal-header"
+      >
+        <h4>
+          Confirm Your Identity
+        </h4>
+      </div>
+      <div
+        className="modal-body"
+      >
+        <div>
+          <p>
+            You will need to reauthenticate to continue.
+          </p>
+          <Button
+            disabled={false}
+            href="/auth/login/?next="
+            priority="primary"
+          >
+            Continue
+          </Button>
+        </div>
+      </div>
+    </Modal>
+    <NarryLayout>
+      <h3>
+        Create a New Team
+      </h3>
+      <p>
+        Teams group members' access to a specific focus, e.g. a major product or application that may have sub-projects.
+      </p>
+      <ApiForm
+        apiEndpoint="/organizations/org/teams/"
+        apiMethod="POST"
+        cancelLabel="Cancel"
+        className="form-stacked"
+        footerClass="form-actions align-right"
+        onSubmitSuccess={[Function]}
+        requireChanges={true}
+        submitDisabled={false}
+        submitErrorMessage="There was an error saving your changes."
+        submitLabel="Save Changes"
+        submitLoadingMessage="Saving changes.."
+      >
+        <TextField
+          disabled={false}
+          hideErrorMessage={false}
+          label="Team Name"
+          name="name"
+          placeholder="e.g. Operations, Web, Desktop"
+          required={true}
+        />
+      </ApiForm>
+    </NarryLayout>
+  </div>
 </DocumentTitle>
 `;

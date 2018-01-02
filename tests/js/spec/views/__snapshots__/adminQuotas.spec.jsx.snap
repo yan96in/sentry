@@ -1,8 +1,8 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`TeamSettings render() renders 1`] = `
+exports[`AdminQuotas render() renders 1`] = `
 <DocumentTitle
-  title="Team Settings"
+  title="Sentry"
 >
   <div>
     <Modal
@@ -51,48 +51,74 @@ exports[`TeamSettings render() renders 1`] = `
         </div>
       </div>
     </Modal>
-    <div
-      className="box"
-    >
+    <div>
+      <h3>
+        Quotas
+      </h3>
       <div
-        className="box-content with-padding"
+        className="box"
       >
-        <ApiForm
-          apiEndpoint="/teams/org/team-slug/"
-          apiMethod="PUT"
-          cancelLabel="Cancel"
-          className="form-stacked"
-          footerClass="form-actions align-right"
-          initialData={
-            Object {
-              "name": "Team Name",
-              "slug": "team-slug",
-            }
-          }
-          onSubmitSuccess={[Function]}
-          requireChanges={true}
-          submitDisabled={false}
-          submitErrorMessage="There was an error saving your changes."
-          submitLabel="Save Changes"
-          submitLoadingMessage="Saving changes.."
+        <div
+          className="box-header"
+        >
+          <h4>
+            Config
+          </h4>
+        </div>
+        <div
+          className="box-content with-padding"
         >
           <TextField
-            disabled={false}
+            disabled={true}
             hideErrorMessage={false}
-            label="Name"
-            name="name"
-            placeholder="e.g. API Team"
-            required={true}
+            label="Backend"
+            required={false}
+            value="sentry.quotas.redis.RedisQuota"
           />
           <TextField
-            disabled={false}
+            disabled={true}
             hideErrorMessage={false}
-            label="Short name"
-            name="slug"
-            placeholder="e.g. api-team"
-            required={true}
+            label="Rate Limit"
+            required={false}
+            value={0}
           />
-        </ApiForm>
+        </div>
+      </div>
+      <div
+        className="box"
+      >
+        <div
+          className="box-header"
+        >
+          <h4>
+            Total Events
+          </h4>
+        </div>
+        <internalStatChart
+          height={150}
+          label="Events"
+          resolution="1h"
+          since={1507603280}
+          stat="events.total"
+        />
+      </div>
+      <div
+        className="box"
+      >
+        <div
+          className="box-header"
+        >
+          <h4>
+            Dropped Events
+          </h4>
+        </div>
+        <internalStatChart
+          height={150}
+          label="Events"
+          resolution="1h"
+          since={1507603280}
+          stat="events.dropped"
+        />
       </div>
     </div>
   </div>

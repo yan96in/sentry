@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import APIException, PermissionDenied
 
 
 class ResourceDoesNotExist(APIException):
@@ -9,3 +9,7 @@ class ResourceDoesNotExist(APIException):
 
 class InvalidRepository(Exception):
     pass
+
+
+class NeedSuperuserUpgrade(PermissionDenied):
+    default_detail = 'You need to re-authenticate for superuser.'

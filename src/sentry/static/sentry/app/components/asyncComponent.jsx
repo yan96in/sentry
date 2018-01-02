@@ -95,20 +95,24 @@ class AsyncComponent extends React.Component {
             error = null;
           }
 
-          this.setState(prevState => {
-            return {
-              [stateKey]: null,
-              errors: {
-                ...prevState.errors,
-                [stateKey]: error,
-              },
-              remainingRequests: prevState.remainingRequests - 1,
-              loading: prevState.remainingRequests > 1,
-              error: !!error,
-            };
-          });
+          this.handleError(error, [stateKey, endpoint, params, options]);
         },
       });
+    });
+  }
+
+  handleError(error, [stateKey]) {
+    this.setState(prevState => {
+      return {
+        [stateKey]: null,
+        errors: {
+          ...prevState.errors,
+          [stateKey]: error,
+        },
+        remainingRequests: prevState.remainingRequests - 1,
+        loading: prevState.remainingRequests > 1,
+        error: !!error,
+      };
     });
   }
 
