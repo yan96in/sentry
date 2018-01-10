@@ -6,7 +6,7 @@ from collections import defaultdict, namedtuple
 from datetime import timedelta
 from django.utils import timezone
 
-from sentry.models import GroupRuleStatus, Rule
+from sentry.models import Environment, GroupRuleStatus, Rule
 from sentry.rules import EventState, rules
 from sentry.utils.safe import safe_execute
 
@@ -41,13 +41,22 @@ class RuleProcessor(object):
         self.group = event.group
         self.project = event.project
 
+        # XXX: This should really just be a cached property on the event at this point.
+        self.environment = Environment.objects.get(
+            organization_id=self.project.organization_id,
+            name=event.get_tag('environment') or '',  # XXX: we really should fix this
+        )
+
         self.is_new = is_new
         self.is_regression = is_regression
 
         self.futures_by_cb = defaultdict(list)
 
     def get_rules(self):
-        return Rule.get_for_project(self.project.id)
+        return filter(
+            lambda rule: rule.environment is None or rule.environment is self.environment,
+            Rule.get_for_project(self.project.id),
+        )
 
     def get_rule_status(self, rule):
         rule_status, _ = GroupRuleStatus.objects.get_or_create(
