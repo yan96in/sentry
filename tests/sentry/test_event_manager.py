@@ -3,25 +3,28 @@
 from __future__ import absolute_import, print_function
 
 import logging
+import mock
 import pytest
+import uuid
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from django.conf import settings
 from django.utils import timezone
-from mock import patch
 from time import time
 
 from sentry.app import tsdb
 from sentry.constants import MAX_CULPRIT_LENGTH, DEFAULT_LOGGER_NAME, VERSION_LENGTH
 from sentry.event_manager import (
-    HashDiscarded, EventManager, EventUser, get_hashes_for_event, get_hashes_from_fingerprint,
-    generate_culprit, md5_from_hash
+    HashDiscarded, EventManager, EventUser, InvalidTimestamp,
+    get_hashes_for_event, get_hashes_from_fingerprint, generate_culprit,
+    md5_from_hash, process_timestamp
 )
 from sentry.models import (
-    Activity, Environment, Event, Group, GroupHash, GroupRelease, GroupResolution, GroupStatus, GroupTombstone,
-    EventMapping, Release
+    Activity, Environment, Event, Group, GroupEnvironment, GroupHash, GroupRelease, GroupResolution,
+    GroupStatus, GroupTombstone, EventMapping, Release
 )
-from sentry.testutils import TestCase, TransactionTestCase
+from sentry.signals import event_discarded, event_saved
+from sentry.testutils import assert_mock_called_once_with_partial, TestCase, TransactionTestCase
 
 
 class EventManagerTest(TransactionTestCase):
@@ -69,7 +72,7 @@ class EventManagerTest(TransactionTestCase):
         assert event1.transaction == 'bar'
         assert event1.culprit == 'bar'
 
-    @patch('sentry.signals.regression_signal.send')
+    @mock.patch('sentry.signals.regression_signal.send')
     def test_broken_regression_signal(self, send):
         send.side_effect = Exception()
 
@@ -79,7 +82,7 @@ class EventManagerTest(TransactionTestCase):
         assert event.message == 'foo'
         assert event.project_id == 1
 
-    @patch('sentry.event_manager.should_sample')
+    @mock.patch('sentry.event_manager.should_sample')
     def test_saves_event_mapping_when_sampled(self, should_sample):
         should_sample.return_value = True
         event_id = 'a' * 32
@@ -116,7 +119,7 @@ class EventManagerTest(TransactionTestCase):
             event_id=event_id,
         ).exists()
 
-    @patch('sentry.event_manager.should_sample')
+    @mock.patch('sentry.event_manager.should_sample')
     def test_sample_feature_flag(self, should_sample):
         should_sample.return_value = True
 
@@ -349,7 +352,7 @@ class EventManagerTest(TransactionTestCase):
         group = Group.objects.get(id=group.id)
         assert not group.is_resolved()
 
-    @patch('sentry.event_manager.plugin_is_regression')
+    @mock.patch('sentry.event_manager.plugin_is_regression')
     def test_does_not_unresolve_group(self, plugin_is_regression):
         # N.B. EventManager won't unresolve the group unless the event2 has a
         # later timestamp than event1. MySQL doesn't support microseconds.
@@ -383,8 +386,8 @@ class EventManagerTest(TransactionTestCase):
         group = Group.objects.get(id=group.id)
         assert group.is_resolved()
 
-    @patch('sentry.tasks.activity.send_activity_notifications.delay')
-    @patch('sentry.event_manager.plugin_is_regression')
+    @mock.patch('sentry.tasks.activity.send_activity_notifications.delay')
+    @mock.patch('sentry.event_manager.plugin_is_regression')
     def test_marks_as_unresolved_with_new_release(
         self, plugin_is_regression, mock_send_activity_notifications_delay
     ):
@@ -468,7 +471,7 @@ class EventManagerTest(TransactionTestCase):
 
         mock_send_activity_notifications_delay.assert_called_once_with(activity.id)
 
-    @patch('sentry.models.Group.is_resolved')
+    @mock.patch('sentry.models.Group.is_resolved')
     def test_unresolves_group_with_auto_resolve(self, mock_is_resolved):
         mock_is_resolved.return_value = False
         manager = EventManager(
@@ -620,10 +623,15 @@ class EventManagerTest(TransactionTestCase):
             environment='staging',
         ).exists()
 
-    def test_bad_logger(self):
-        manager = EventManager(self.make_event(logger='foo bar'))
+    def test_logger(self):
+        manager = EventManager(self.make_event(logger="foo\nbar"))
         data = manager.normalize()
         assert data['logger'] == DEFAULT_LOGGER_NAME
+
+        manager = EventManager(self.make_event(logger=""))
+        data = manager.normalize()
+        assert data['logger'] == DEFAULT_LOGGER_NAME
+        assert not any(e.get('name') == 'logger' for e in data['errors'])
 
     def test_tsdb(self):
         project = self.project
@@ -766,6 +774,51 @@ class EventManagerTest(TransactionTestCase):
         event = manager.save(self.project.id)
 
         assert dict(event.tags).get('environment') == 'beta'
+
+    @mock.patch('sentry.event_manager.post_process_group.delay')
+    def test_group_environment(self, mock_post_process_group_delay):
+        def save_event():
+            manager = EventManager(self.make_event(**{
+                'event_id': uuid.uuid1().hex,  # don't deduplicate
+                'environment': 'beta',
+            }))
+            manager.normalize()
+            return manager.save(self.project.id)
+
+        event = save_event()
+
+        # Ensure the `GroupEnvironment` record was created.
+        GroupEnvironment.objects.get(
+            group_id=event.group_id,
+            environment_id=Environment.objects.get(
+                organization_id=self.project.organization_id,
+                name=event.get_tag('environment'),
+            ).id,
+        )
+
+        # Ensure that the first event in the (group, environment) pair is
+        # marked as being part of a new environment.
+        mock_post_process_group_delay.assert_called_with(
+            group=event.group,
+            event=event,
+            is_new=True,
+            is_sample=False,
+            is_regression=False,
+            is_new_group_environment=True,
+        )
+
+        event = save_event()
+
+        # Ensure that the next event in the (group, environment) pair is *not*
+        # marked as being part of a new environment.
+        mock_post_process_group_delay.assert_called_with(
+            group=event.group,
+            event=event,
+            is_new=False,
+            is_sample=False,
+            is_regression=None,  # XXX: wut
+            is_new_group_environment=False,
+        )
 
     def test_default_fingerprint(self):
         manager = EventManager(self.make_event())
@@ -910,6 +963,9 @@ class EventManagerTest(TransactionTestCase):
         }
 
     def test_message_attribute_goes_to_formatted(self):
+        # The combining of 'message' and 'sentry.interfaces.Message' is a bit
+        # of a compatibility hack, and ideally we would just enforce a stricter
+        # schema instead of combining them like this.
         manager = EventManager(
             self.make_event(
                 **{
@@ -927,7 +983,23 @@ class EventManagerTest(TransactionTestCase):
             'formatted': 'world hello',
         }
 
-    def test_trows_when_matches_discarded_hash(self):
+    def test_message_attribute_interface_both_strings(self):
+        manager = EventManager(
+            self.make_event(
+                **{
+                    'sentry.interfaces.Message': 'a plain string',
+                    'message': 'another string',
+                }
+            )
+        )
+        manager.normalize()
+        event = manager.save(self.project.id)
+        assert event.data['sentry.interfaces.Message'] == {
+            'message': 'a plain string',
+            'formatted': 'another string',
+        }
+
+    def test_throws_when_matches_discarded_hash(self):
         manager = EventManager(
             self.make_event(
                 message='foo',
@@ -962,14 +1034,111 @@ class EventManagerTest(TransactionTestCase):
             )
         )
 
+        mock_event_discarded = mock.Mock()
+        event_discarded.connect(mock_event_discarded)
+        mock_event_saved = mock.Mock()
+        event_saved.connect(mock_event_saved)
+
         with self.tasks():
             with self.assertRaises(HashDiscarded):
                 event = manager.save(1)
 
+        assert not mock_event_saved.called
+        assert_mock_called_once_with_partial(
+            mock_event_discarded,
+            project=group.project,
+            sender=EventManager,
+            signal=event_discarded,
+        )
+
+    def test_event_saved_signal(self):
+        mock_event_saved = mock.Mock()
+        event_saved.connect(mock_event_saved)
+
+        manager = EventManager(self.make_event(message='foo'))
+        manager.normalize()
+        event = manager.save(1)
+
+        assert_mock_called_once_with_partial(
+            mock_event_saved,
+            project=event.group.project,
+            sender=EventManager,
+            signal=event_saved,
+        )
+
+    def test_bad_interfaces_no_exception(self):
+        manager = EventManager(
+            self.make_event(
+                **{
+                    'sentry.interfaces.User': None,
+                    'sentry.interfaces.Http': None,
+                    'sdk': 'A string for sdk is not valid'
+                }
+            )
+        )
+        manager.normalize({'client_ip': '1.2.3.4'})
+
+        manager = EventManager(
+            self.make_event(
+                **{
+                    'errors': {},
+                    'sentry.interfaces.Http': {},
+                }
+            )
+        )
+        manager.normalize()
+
+
+class ProcessTimestampTest(TestCase):
+    def test_iso_timestamp(self):
+        self.assertEquals(
+            process_timestamp(
+                '2012-01-01T10:30:45',
+                current_datetime=datetime(2012, 1, 1, 10, 30, 45),
+            ),
+            1325413845.0,
+        )
+
+    def test_iso_timestamp_with_ms(self):
+        self.assertEquals(
+            process_timestamp(
+                '2012-01-01T10:30:45.434',
+                current_datetime=datetime(2012, 1, 1, 10, 30, 45, 434000),
+            ),
+            1325413845.0,
+        )
+
+    def test_timestamp_iso_timestamp_with_Z(self):
+        self.assertEquals(
+            process_timestamp(
+                '2012-01-01T10:30:45Z',
+                current_datetime=datetime(2012, 1, 1, 10, 30, 45),
+            ),
+            1325413845.0,
+        )
+
+    def test_invalid_timestamp(self):
+        self.assertRaises(InvalidTimestamp, process_timestamp, 'foo')
+
+    def test_invalid_numeric_timestamp(self):
+        self.assertRaises(InvalidTimestamp, process_timestamp, '100000000000000000000.0')
+
+    def test_future_timestamp(self):
+        self.assertRaises(InvalidTimestamp, process_timestamp, '2052-01-01T10:30:45Z')
+
+    def test_long_microseconds_value(self):
+        self.assertEquals(
+            process_timestamp(
+                '2012-01-01T10:30:45.341324Z',
+                current_datetime=datetime(2012, 1, 1, 10, 30, 45),
+            ),
+            1325413845.0,
+        )
+
 
 class GetHashesFromEventTest(TestCase):
-    @patch('sentry.interfaces.stacktrace.Stacktrace.compute_hashes')
-    @patch('sentry.interfaces.http.Http.compute_hashes')
+    @mock.patch('sentry.interfaces.stacktrace.Stacktrace.compute_hashes')
+    @mock.patch('sentry.interfaces.http.Http.compute_hashes')
     def test_stacktrace_wins_over_http(self, http_comp_hash, stack_comp_hash):
         # this was a regression, and a very important one
         http_comp_hash.return_value = [['baz']]

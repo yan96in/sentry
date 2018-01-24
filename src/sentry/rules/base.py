@@ -69,6 +69,9 @@ class RuleBase(object):
         self.had_data = data is not None
         self.rule = rule
 
+    def is_enabled(self):
+        return True
+
     def get_option(self, key):
         return self.data.get(key)
 
@@ -110,7 +113,7 @@ class RuleBase(object):
 
 
 class EventState(object):
-    def __init__(self, is_new, is_regression, is_sample):
+    def __init__(self, is_new, is_regression, is_new_group_environment):
         self.is_new = is_new
         self.is_regression = is_regression
-        self.is_sample = is_sample,
+        self.is_new_group_environment = is_new_group_environment

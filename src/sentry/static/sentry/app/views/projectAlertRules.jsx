@@ -1,5 +1,7 @@
 import PropTypes from 'prop-types';
 import React from 'react';
+import {Link} from 'react-router';
+import createReactClass from 'create-react-class';
 
 import {t} from '../locale';
 import ApiMixin from '../mixins/apiMixin';
@@ -10,9 +12,11 @@ import IndicatorStore from '../stores/indicatorStore';
 import ListLink from '../components/listLink';
 import LoadingError from '../components/loadingError';
 import LoadingIndicator from '../components/loadingIndicator';
-import SpreadLayout from '../components/spreadLayout';
+import SettingsPageHeader from './settings/components/settingsPageHeader';
 
-const RuleRow = React.createClass({
+const RuleRow = createReactClass({
+  displayName: 'RuleRow',
+
   propTypes: {
     orgId: PropTypes.string.isRequired,
     projectId: PropTypes.string.isRequired,
@@ -58,7 +62,7 @@ const RuleRow = React.createClass({
       <div className="box">
         <div className="box-header">
           <div className="pull-right">
-            <Button style={{marginRight: 5}} size="small" href={editLink}>
+            <Button style={{marginRight: 5}} size="small" to={editLink}>
               {t('Edit Rule')}
             </Button>
 
@@ -72,7 +76,7 @@ const RuleRow = React.createClass({
             </Confirm>
           </div>
           <h3>
-            <a href={editLink}>{data.name}</a>
+            <Link to={editLink}>{data.name}</Link>
           </h3>
         </div>
         <div className="box-content with-padding">
@@ -84,13 +88,15 @@ const RuleRow = React.createClass({
                     When <strong>{data.actionMatch}</strong> of these conditions are met:
                   </h6>
                   <table className="conditions-list table">
-                    {data.conditions.map((condition, i) => {
-                      return (
-                        <tr key={i}>
-                          <td>{condition.name}</td>
-                        </tr>
-                      );
-                    })}
+                    <tbody>
+                      {data.conditions.map((condition, i) => {
+                        return (
+                          <tr key={i}>
+                            <td>{condition.name}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
                   </table>
                 </div>
               )}
@@ -106,13 +112,15 @@ const RuleRow = React.createClass({
                     for an issue:
                   </h6>
                   <table className="actions-list table">
-                    {data.actions.map((action, i) => {
-                      return (
-                        <tr key={i}>
-                          <td>{action.name}</td>
-                        </tr>
-                      );
-                    })}
+                    <tbody>
+                      {data.actions.map((action, i) => {
+                        return (
+                          <tr key={i}>
+                            <td>{action.name}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
                   </table>
                 </div>
               )}
@@ -124,7 +132,8 @@ const RuleRow = React.createClass({
   },
 });
 
-const ProjectAlertRules = React.createClass({
+const ProjectAlertRules = createReactClass({
+  displayName: 'ProjectAlertRules',
   mixins: [ApiMixin],
 
   getInitialState() {
@@ -215,27 +224,30 @@ const ProjectAlertRules = React.createClass({
     let {orgId, projectId} = this.props.params;
     return (
       <div>
-        <SpreadLayout style={{marginBottom: 20}}>
-          <h2 style={{margin: 0}}>{t('Alerts')}</h2>
-          <Button
-            href={`/${orgId}/${projectId}/settings/alerts/rules/new/`}
-            priority="primary"
-            size="small"
-            className="pull-right"
-          >
-            <span className="icon-plus" />
-            {t('New Alert Rule')}
-          </Button>
-        </SpreadLayout>
-
-        <ul className="nav nav-tabs" style={{borderBottom: '1px solid #ddd'}}>
-          <ListLink to={`/${orgId}/${projectId}/settings/alerts/`} index={true}>
-            {t('Settings')}
-          </ListLink>
-          <ListLink to={`/${orgId}/${projectId}/settings/alerts/rules/`}>
-            {t('Rules')}
-          </ListLink>
-        </ul>
+        <SettingsPageHeader
+          title={t('Alerts')}
+          action={
+            <Button
+              to={`/${orgId}/${projectId}/settings/alerts/rules/new/`}
+              priority="primary"
+              size="small"
+              className="pull-right"
+            >
+              <span className="icon-plus" />
+              {t('New Alert Rule')}
+            </Button>
+          }
+          tabs={
+            <ul className="nav nav-tabs" style={{borderBottom: '1px solid #ddd'}}>
+              <ListLink to={`/${orgId}/${projectId}/settings/alerts/`} index={true}>
+                {t('Settings')}
+              </ListLink>
+              <ListLink to={`/${orgId}/${projectId}/settings/alerts/rules/`}>
+                {t('Rules')}
+              </ListLink>
+            </ul>
+          }
+        />
 
         {this.renderBody()}
       </div>

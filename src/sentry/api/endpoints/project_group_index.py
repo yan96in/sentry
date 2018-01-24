@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function
 
 from datetime import timedelta
+import functools
 import logging
 from uuid import uuid4
 
@@ -11,7 +12,7 @@ from rest_framework import serializers
 from rest_framework.response import Response
 
 from sentry import features, search
-from sentry.api.base import DocSection
+from sentry.api.base import DocSection, EnvironmentMixin
 from sentry.api.bases.project import ProjectEndpoint, ProjectEventPermission
 from sentry.api.fields import UserField
 from sentry.api.serializers import serialize
@@ -20,7 +21,7 @@ from sentry.api.serializers.models.group import (
 from sentry.constants import DEFAULT_SORT_OPTION
 from sentry.db.models.query import create_or_update
 from sentry.models import (
-    Activity, Group, GroupAssignee, GroupBookmark, GroupHash, GroupResolution,
+    Activity, Environment, Group, GroupAssignee, GroupBookmark, GroupHash, GroupResolution,
     GroupSeen, GroupShare, GroupSnooze, GroupStatus, GroupSubscription, GroupSubscriptionReason,
     GroupTombstone, Release, TOMBSTONE_FIELDS_FROM_GROUP, UserOption
 )
@@ -32,7 +33,7 @@ from sentry.signals import advanced_search, issue_resolved_in_release
 from sentry.tasks.deletion import delete_group
 from sentry.tasks.merge import merge_group
 from sentry.utils.apidocs import attach_scenarios, scenario
-from sentry.utils.cursors import Cursor
+from sentry.utils.cursors import Cursor, CursorResult
 from sentry.utils.functional import extract_lazy_object
 
 delete_logger = logging.getLogger('sentry.deletions.api')
@@ -95,11 +96,11 @@ class StatusDetailsValidator(serializers.Serializer):
     inRelease = serializers.CharField()
     ignoreDuration = serializers.IntegerField()
     ignoreCount = serializers.IntegerField()
-    # in hours, max of one week
-    ignoreWindow = serializers.IntegerField(max_value=7 * 24)
+    # in minutes, max of one week
+    ignoreWindow = serializers.IntegerField(max_value=7 * 24 * 60)
     ignoreUserCount = serializers.IntegerField()
-    # in hours, max of one week
-    ignoreUserWindow = serializers.IntegerField(max_value=7 * 24)
+    # in minutes, max of one week
+    ignoreUserWindow = serializers.IntegerField(max_value=7 * 24 * 60)
 
     def validate_inRelease(self, attrs, source):
         value = attrs[source]
@@ -109,7 +110,9 @@ class StatusDetailsValidator(serializers.Serializer):
                 attrs[source] = Release.objects.filter(
                     projects=project,
                     organization_id=project.organization_id,
-                ).order_by('-date_added')[0]
+                ).extra(select={
+                    'sort': 'COALESCE(date_released, date_added)',
+                }).order_by('-sort')[0]
             except IndexError:
                 raise serializers.ValidationError(
                     'No release data present in the system to form a basis for \'Next Release\''
@@ -151,11 +154,11 @@ class GroupValidator(serializers.Serializer):
     discard = serializers.BooleanField()
     ignoreDuration = serializers.IntegerField()
     ignoreCount = serializers.IntegerField()
-    # in hours, max of one week
-    ignoreWindow = serializers.IntegerField(max_value=7 * 24)
+    # in minutes, max of one week
+    ignoreWindow = serializers.IntegerField(max_value=7 * 24 * 60)
     ignoreUserCount = serializers.IntegerField()
-    # in hours, max of one week
-    ignoreUserWindow = serializers.IntegerField(max_value=7 * 24)
+    # in minutes, max of one week
+    ignoreUserWindow = serializers.IntegerField(max_value=7 * 24 * 60)
     assignedTo = UserField()
 
     # TODO(dcramer): remove in 9.0
@@ -176,7 +179,7 @@ class GroupValidator(serializers.Serializer):
         return attrs
 
 
-class ProjectGroupIndexEndpoint(ProjectEndpoint):
+class ProjectGroupIndexEndpoint(ProjectEndpoint, EnvironmentMixin):
     doc_section = DocSection.EVENTS
 
     permission_classes = (ProjectEventPermission, )
@@ -269,8 +272,13 @@ class ProjectGroupIndexEndpoint(ProjectEndpoint):
             # disable stats
             stats_period = None
 
-        query = request.GET.get('query', '').strip()
+        serializer = functools.partial(
+            StreamGroupSerializer,
+            environment_func=self._get_environment_func(request, project.organization_id),
+            stats_period=stats_period,
+        )
 
+        query = request.GET.get('query', '').strip()
         if query:
             matching_group = None
             matching_event = None
@@ -302,11 +310,8 @@ class ProjectGroupIndexEndpoint(ProjectEndpoint):
             if matching_group is not None:
                 response = Response(
                     serialize(
-                        [matching_group], request.user,
-                        StreamGroupSerializer(
-                            stats_period=stats_period,
-                            matching_event_id=getattr(
-                                matching_event, 'id', None)
+                        [matching_group], request.user, serializer(
+                            matching_event_id=getattr(matching_event, 'id', None),
                         )
                     )
                 )
@@ -319,13 +324,22 @@ class ProjectGroupIndexEndpoint(ProjectEndpoint):
         except ValidationError as exc:
             return Response({'detail': six.text_type(exc)}, status=400)
 
-        cursor_result = search.query(count_hits=True, **query_kwargs)
+        try:
+            environment_id = self._get_environment_id_from_request(
+                request, project.organization_id)
+        except Environment.DoesNotExist:
+            # XXX: The 1000 magic number for `max_hits` is an abstraction leak
+            # from `sentry.api.paginator.BasePaginator.get_result`.
+            cursor_result = CursorResult([], None, None, hits=0, max_hits=1000)
+        else:
+            cursor_result = search.query(
+                count_hits=True,
+                environment_id=environment_id,
+                **query_kwargs)
 
         results = list(cursor_result)
 
-        context = serialize(
-            results, request.user, StreamGroupSerializer(
-                stats_period=stats_period))
+        context = serialize(results, request.user, serializer())
 
         # HACK: remove auto resolved entries
         if query_kwargs.get('status') == GroupStatus.UNRESOLVED:
@@ -442,7 +456,7 @@ class ProjectGroupIndexEndpoint(ProjectEndpoint):
         discard = result.get('discard')
         if discard:
 
-            if not features.has('projects:custom-filters', project, actor=request.user):
+            if not features.has('projects:discard-groups', project, actor=request.user):
                 return Response({'detail': ['You do not have that feature enabled']}, status=400)
 
             group_list = list(queryset)
@@ -481,7 +495,9 @@ class ProjectGroupIndexEndpoint(ProjectEndpoint):
                 release = Release.objects.filter(
                     projects=project,
                     organization_id=project.organization_id,
-                ).order_by('-date_added')[0]
+                ).extra(select={
+                    'sort': 'COALESCE(date_released, date_added)',
+                }).order_by('-sort')[0]
                 activity_type = Activity.SET_RESOLVED_IN_RELEASE
                 activity_data = {
                     # no version yet

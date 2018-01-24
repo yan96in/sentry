@@ -1,5 +1,5 @@
 import React from 'react';
-import update from 'react-addons-update';
+import createReactClass from 'create-react-class';
 import {browserHistory} from 'react-router';
 
 import ActionOverlay from '../../components/actionOverlay';
@@ -47,7 +47,8 @@ function getProjectInfoForReview(org) {
   };
 }
 
-const SetCallsignsAction = React.createClass({
+const SetCallsignsAction = createReactClass({
+  displayName: 'SetCallsignsAction',
   mixins: [ApiMixin, OrganizationState],
 
   getInitialState() {
@@ -72,7 +73,7 @@ const SetCallsignsAction = React.createClass({
       method: 'PUT',
       data: {slugs: this.state.slugs},
       success: data => {
-        browserHistory.pushState('refresh', `/${orgId}/`);
+        browserHistory.push({state: 'refresh', pathname: `/${orgId}/`});
       },
       error: error => {
         /*eslint no-console:0*/
@@ -90,9 +91,10 @@ const SetCallsignsAction = React.createClass({
 
   onSetShortName(projectId, event) {
     this.setState({
-      slugs: update(this.state.slugs, {
-        [projectId]: {$set: event.target.value.toUpperCase().trim()},
-      }),
+      slugs: {
+        ...this.state.slugs,
+        [projectId]: event.target.value.toUpperCase().trim(),
+      },
     });
   },
 

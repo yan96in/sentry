@@ -342,14 +342,18 @@ exports[`Issues -> Merged View renders with mocked data 1`] = `
                                 bsClass="modal"
                                 dialogComponentClass={[Function]}
                                 enforceFocus={true}
+                                key="confirm"
                                 keyboard={true}
                                 manager={
                                   ModalManager {
+                                    "add": [Function],
                                     "containers": Array [],
                                     "data": Array [],
                                     "handleContainerOverflow": true,
                                     "hideSiblingNodes": true,
+                                    "isTopModal": [Function],
                                     "modals": Array [],
+                                    "remove": [Function],
                                   }
                                 }
                                 onHide={[Function]}
@@ -361,18 +365,19 @@ exports[`Issues -> Merged View renders with mocked data 1`] = `
                                   autoFocus={true}
                                   backdrop={true}
                                   backdropClassName="modal-backdrop"
-                                  backdropTransitionTimeout={150}
                                   containerClassName="modal-open"
-                                  dialogTransitionTimeout={300}
                                   enforceFocus={true}
                                   keyboard={true}
                                   manager={
                                     ModalManager {
+                                      "add": [Function],
                                       "containers": Array [],
                                       "data": Array [],
                                       "handleContainerOverflow": true,
                                       "hideSiblingNodes": true,
+                                      "isTopModal": [Function],
                                       "modals": Array [],
+                                      "remove": [Function],
                                     }
                                   }
                                   onEntering={[Function]}
@@ -573,6 +578,7 @@ exports[`Issues -> Merged View renders with mocked data 1`] = `
             fingerprint="2c4887696f708c476a81ce4e834c4b02"
             groupId="groupId"
             itemCount={2}
+            key="2c4887696f708c476a81ce4e834c4b02"
             orgId="orgId"
             projectId="projectId"
           >
@@ -1001,6 +1007,7 @@ exports[`Issues -> Merged View renders with mocked data 1`] = `
             fingerprint="e05da55328a860b21f62e371f0a7507d"
             groupId="groupId"
             itemCount={2}
+            key="e05da55328a860b21f62e371f0a7507d"
             orgId="orgId"
             projectId="projectId"
           >
@@ -1328,7 +1335,7 @@ exports[`Issues -> Merged View renders with mocked data 1`] = `
             </div>
           </MergedItem>
         </div>
-        <pagination
+        <Pagination
           onCursor={[Function]}
         />
       </div>
@@ -1663,14 +1670,18 @@ exports[`Issues -> Merged View renders with mocked data 2`] = `
                                 bsClass="modal"
                                 dialogComponentClass={[Function]}
                                 enforceFocus={true}
+                                key="confirm"
                                 keyboard={true}
                                 manager={
                                   ModalManager {
+                                    "add": [Function],
                                     "containers": Array [],
                                     "data": Array [],
                                     "handleContainerOverflow": true,
                                     "hideSiblingNodes": true,
+                                    "isTopModal": [Function],
                                     "modals": Array [],
+                                    "remove": [Function],
                                   }
                                 }
                                 onHide={[Function]}
@@ -1682,18 +1693,19 @@ exports[`Issues -> Merged View renders with mocked data 2`] = `
                                   autoFocus={true}
                                   backdrop={true}
                                   backdropClassName="modal-backdrop"
-                                  backdropTransitionTimeout={150}
                                   containerClassName="modal-open"
-                                  dialogTransitionTimeout={300}
                                   enforceFocus={true}
                                   keyboard={true}
                                   manager={
                                     ModalManager {
+                                      "add": [Function],
                                       "containers": Array [],
                                       "data": Array [],
                                       "handleContainerOverflow": true,
                                       "hideSiblingNodes": true,
+                                      "isTopModal": [Function],
                                       "modals": Array [],
+                                      "remove": [Function],
                                     }
                                   }
                                   onEntering={[Function]}
@@ -1894,6 +1906,7 @@ exports[`Issues -> Merged View renders with mocked data 2`] = `
             fingerprint="2c4887696f708c476a81ce4e834c4b02"
             groupId="groupId"
             itemCount={2}
+            key="2c4887696f708c476a81ce4e834c4b02"
             orgId="orgId"
             projectId="projectId"
           >
@@ -2322,6 +2335,7 @@ exports[`Issues -> Merged View renders with mocked data 2`] = `
             fingerprint="e05da55328a860b21f62e371f0a7507d"
             groupId="groupId"
             itemCount={2}
+            key="e05da55328a860b21f62e371f0a7507d"
             orgId="orgId"
             projectId="projectId"
           >
@@ -2649,7 +2663,7 @@ exports[`Issues -> Merged View renders with mocked data 2`] = `
             </div>
           </MergedItem>
         </div>
-        <pagination
+        <Pagination
           onCursor={[Function]}
         />
       </div>

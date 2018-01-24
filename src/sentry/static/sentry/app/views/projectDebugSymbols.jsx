@@ -1,16 +1,22 @@
-import React from 'react';
 import Modal from 'react-bootstrap/lib/Modal';
+import React from 'react';
+import createReactClass from 'create-react-class';
 
+import {t} from '../locale';
 import ApiMixin from '../mixins/apiMixin';
-import OrganizationState from '../mixins/organizationState';
-import LoadingError from '../components/loadingError';
-import LoadingIndicator from '../components/loadingIndicator';
 import DateTime from '../components/dateTime';
 import FileSize from '../components/fileSize';
+import LoadingError from '../components/loadingError';
+import LoadingIndicator from '../components/loadingIndicator';
+import OrganizationState from '../mixins/organizationState';
+import SettingsPageHeader from './settings/components/settingsPageHeader';
+import TextBlock from './settings/components/text/textBlock';
 import TimeSince from '../components/timeSince';
-import {t} from '../locale';
 
-const ProjectDebugSymbols = React.createClass({
+const marginBottomStyle = {marginBottom: 40};
+
+const ProjectDebugSymbols = createReactClass({
+  displayName: 'ProjectDebugSymbols',
   mixins: [ApiMixin, OrganizationState],
 
   getInitialState() {
@@ -103,7 +109,7 @@ const ProjectDebugSymbols = React.createClass({
 
   renderEmpty() {
     return (
-      <div className="box empty-stream">
+      <div style={marginBottomStyle} className="box empty-stream">
         <span className="icon icon-exclamation" />
         <p>{t('There are no debug symbols for this project.')}</p>
       </div>
@@ -143,7 +149,7 @@ const ProjectDebugSymbols = React.createClass({
 
     return indexedApps.map(app => {
       return (
-        <div className="box dashboard-widget" key={app.id}>
+        <div style={marginBottomStyle} className="box dashboard-widget" key={app.id}>
           <div className="box-content">
             <div className="tab-pane active">
               <div>
@@ -338,8 +344,8 @@ const ProjectDebugSymbols = React.createClass({
     }
     return (
       <div>
-        <h3>{t('Unreferenced Debug Information Files')}</h3>
-        <p>
+        <SettingsPageHeader title={t('Unreferenced Debug Information Files')} />
+        <TextBlock>
           {t(
             `
           This list represents all Debug Information Files which are not assigned to an
@@ -349,7 +355,7 @@ const ProjectDebugSymbols = React.createClass({
           can't locate the Info.plist file at the time of upload.
         `
           )}
-        </p>
+        </TextBlock>
         <table className="table">
           <thead>
             <tr>
@@ -370,8 +376,8 @@ const ProjectDebugSymbols = React.createClass({
   render() {
     return (
       <div>
-        <h1>{t('Debug Information Files')}</h1>
-        <p>
+        <SettingsPageHeader title={t('Debug Information Files')} />
+        <TextBlock>
           {t(
             `
           Here you can find uploaded debug information (for instance debug
@@ -381,9 +387,12 @@ const ProjectDebugSymbols = React.createClass({
           look at releases instead.
         `
           )}
-        </p>
+        </TextBlock>
+
         {this.renderDebugTable()}
+
         {this.renderUnreferencedDebugSymbols()}
+
         <Modal
           show={this.state.showModal}
           onHide={this.closeModal}

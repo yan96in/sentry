@@ -8,14 +8,14 @@ from django.db.models import Q
 from django.db.models.aggregates import Count
 from django.utils import timezone
 
-from sentry import tsdb
+from sentry import tsdb, options
 from sentry.api.serializers import register, serialize, Serializer
 from sentry.api.serializers.models.plugin import PluginSerializer
 from sentry.constants import StatsPeriod
 from sentry.digests import backend as digests
 from sentry.models import (
-    Project, ProjectBookmark, ProjectOption, ProjectPlatform, ProjectStatus, Release, UserOption,
-    DEFAULT_SUBJECT_TEMPLATE
+    Project, ProjectBookmark, ProjectOption, ProjectPlatform, ProjectStatus, ProjectTeam,
+    Release, UserOption, DEFAULT_SUBJECT_TEMPLATE
 )
 from sentry.utils.data_filters import FilterTypes
 
@@ -104,7 +104,7 @@ class ProjectSerializer(Serializer):
 
         feature_list = []
         for feature in (
-            'global-events', 'data-forwarding', 'rate-limits', 'custom-filters', 'similarity-view',
+            'global-events', 'data-forwarding', 'rate-limits', 'discard-groups', 'similarity-view',
             'custom-inbound-filters', 'minidump',
         ):
             if features.has('projects:' + feature, obj, actor=user):
@@ -128,6 +128,7 @@ class ProjectSerializer(Serializer):
             'features': feature_list,
             'status': status_label,
             'platform': obj.platform,
+            'isInternal': obj.is_internal_project()
         }
         if 'stats' in attrs:
             context['stats'] = attrs['stats']
@@ -158,16 +159,29 @@ class ProjectWithTeamSerializer(ProjectSerializer):
         attrs = super(ProjectWithTeamSerializer,
                       self).get_attrs(item_list, user)
 
+        project_teams = list(
+            ProjectTeam.objects.filter(
+                project__in=item_list,
+            ).select_related('team')
+        )
+
         teams = {d['id']: d for d in serialize(
-            list(set(i.team for i in item_list)), user)}
+            list(set(pt.team for pt in project_teams)), user)}
+
+        teams_by_project_id = defaultdict(list)
+        for pt in project_teams:
+            teams_by_project_id[pt.project_id].append(teams[six.text_type(pt.team_id)])
+
         for item in item_list:
-            attrs[item]['team'] = teams[six.text_type(item.team_id)]
+            attrs[item]['teams'] = teams_by_project_id[item.id]
         return attrs
 
     def serialize(self, obj, attrs, user):
         data = super(ProjectWithTeamSerializer,
                      self).serialize(obj, attrs, user)
-        data['team'] = attrs['team']
+        # TODO(jess): remove this when this is deprecated
+        data['team'] = attrs['teams'][0]
+        data['teams'] = attrs['teams']
         return data
 
 
@@ -187,6 +201,11 @@ class DetailedProjectSerializer(ProjectWithTeamSerializer):
             'sentry:blacklisted_ips',
             'sentry:releases',
             'sentry:error_messages',
+            'sentry:scrape_javascript',
+            'sentry:token',
+            'sentry:token_header',
+            'sentry:verify_ssl',
+            'sentry:scrub_ip_address',
             'feedback:branding',
             'digests:mail:minimum_delay',
             'digests:mail:maximum_delay',
@@ -280,19 +299,6 @@ class DetailedProjectSerializer(ProjectWithTeamSerializer):
                 'latestRelease':
                 attrs['latest_release'],
                 'options': {
-                    'sentry:origins':
-                    '\n'.join(attrs['options'].get(
-                        'sentry:origins', ['*']) or []),
-                    'sentry:resolve_age':
-                    int(attrs['options'].get('sentry:resolve_age', 0)),
-                    'sentry:scrub_data':
-                    bool(attrs['options'].get('sentry:scrub_data', True)),
-                    'sentry:scrub_defaults':
-                    bool(attrs['options'].get('sentry:scrub_defaults', True)),
-                    'sentry:safe_fields':
-                    attrs['options'].get('sentry:safe_fields', []),
-                    'sentry:sensitive_fields':
-                    attrs['options'].get('sentry:sensitive_fields', []),
                     'sentry:csp_ignored_sources_defaults':
                     bool(attrs['options'].get(
                         'sentry:csp_ignored_sources_defaults', True)),
@@ -326,10 +332,28 @@ class DetailedProjectSerializer(ProjectWithTeamSerializer):
                     digests.maximum_delay,
                 ),
                 'subjectPrefix':
-                attrs['options'].get('mail:subject_prefix'),
+                attrs['options'].get('mail:subject_prefix', options.get('mail.subject-prefix')),
+                'allowedDomains':
+                attrs['options'].get(
+                    'sentry:origins', ['*']),
+                'resolveAge':
+                int(attrs['options'].get('sentry:resolve_age', 0)),
+                'dataScrubber':
+                bool(attrs['options'].get('sentry:scrub_data', True)),
+                'dataScrubberDefaults':
+                bool(attrs['options'].get('sentry:scrub_defaults', True)),
+                'safeFields':
+                attrs['options'].get('sentry:safe_fields', []),
+                'sensitiveFields':
+                attrs['options'].get('sentry:sensitive_fields', []),
                 'subjectTemplate':
                 attrs['options'].get(
                     'mail:subject_template') or DEFAULT_SUBJECT_TEMPLATE.template,
+                'securityToken': attrs['options'].get('sentry:token') or obj.get_security_token(),
+                'securityTokenHeader': attrs['options'].get('sentry:token_header'),
+                'verifySSL': bool(attrs['options'].get('sentry:verify_ssl', False)),
+                'scrubIPAddresses': bool(attrs['options'].get('sentry:scrub_ip_address', False)),
+                'scrapeJavaScript': bool(attrs['options'].get('sentry:scrape_javascript', True)),
                 'organization':
                 attrs['org'],
                 'plugins':
@@ -344,7 +368,7 @@ class DetailedProjectSerializer(ProjectWithTeamSerializer):
                 'processingIssues':
                 attrs['processing_issues'],
                 'defaultEnvironment':
-                attrs['options'].get('default_environment'),
+                attrs['options'].get('sentry:default_environment'),
             }
         )
         return data

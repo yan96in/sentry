@@ -153,6 +153,17 @@ class GroupListTest(APITestCase):
         response = self.client.get('{}?statsPeriod=48h'.format(self.path), format='json')
         assert response.status_code == 400
 
+    def test_environment(self):
+        self.create_event(tags={'environment': 'production'})
+
+        self.login_as(user=self.user)
+
+        response = self.client.get(self.path + '?environment=production', format='json')
+        assert response.status_code == 200
+
+        response = self.client.get(self.path + '?environment=garbage', format='json')
+        assert response.status_code == 200
+
     def test_auto_resolved(self):
         project = self.project
         project.update_option('sentry:resolve_age', 1)
@@ -248,12 +259,12 @@ class GroupListTest(APITestCase):
         group = self.create_group(checksum='a' * 32, project=project)
         group2 = self.create_group(checksum='b' * 32, project=project2)
         tagstore.create_group_tag_value(
-            project_id=project.id, group_id=group.id, environment_id=self.environment.id,
+            project_id=project.id, group_id=group.id, environment_id=None,
             key='sentry:release', value=release.version
         )
 
         tagstore.create_group_tag_value(
-            project_id=project2.id, group_id=group2.id, environment_id=self.environment.id,
+            project_id=project2.id, group_id=group2.id, environment_id=None,
             key='sentry:release', value=release.version
         )
 
@@ -925,7 +936,7 @@ class GroupUpdateTest(APITestCase):
         tagstore.create_group_tag_key(
             group.project_id,
             group.id,
-            self.environment.id,
+            None,
             'sentry:user',
             values_seen=100,
         )
@@ -1284,7 +1295,7 @@ class GroupUpdateTest(APITestCase):
             group1=group1,
         )
         with self.tasks():
-            with self.feature('projects:custom-filters'):
+            with self.feature('projects:discard-groups'):
                 response = self.client.put(
                     url, data={
                         'discard': True,

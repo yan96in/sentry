@@ -3,10 +3,10 @@ import React from 'react';
 import classNames from 'classnames';
 
 import {t} from '../../locale';
-import IconCircleExclamation from '../../icons/icon-circle-exclamation';
+import InlineSvg from '../../components/inlineSvg';
 
-const DetailedError = React.createClass({
-  propTypes: {
+class DetailedError extends React.Component {
+  static propTypes = {
     className: PropTypes.string,
     /* Retry callback */
     onRetry: PropTypes.func,
@@ -16,13 +16,11 @@ const DetailedError = React.createClass({
     message: PropTypes.node,
     /* Hide support links in footer of error message */
     hideSupportLinks: PropTypes.bool,
-  },
+  };
 
-  getDefaultProps() {
-    return {
-      hideSupportLinks: false,
-    };
-  },
+  static defaultProps = {
+    hideSupportLinks: false,
+  };
 
   render() {
     const {className, heading, message, onRetry, hideSupportLinks} = this.props;
@@ -33,7 +31,7 @@ const DetailedError = React.createClass({
     return (
       <div className={cx}>
         <div className="detailed-error-icon">
-          <IconCircleExclamation />
+          <InlineSvg src="icon-circle-exclamation" />
         </div>
         <div className="detailed-error-content">
           <h4>{heading}</h4>
@@ -62,7 +60,7 @@ const DetailedError = React.createClass({
         </div>
       </div>
     );
-  },
-});
+  }
+}
 
 export default DetailedError;

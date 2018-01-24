@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types';
 import React from 'react';
+import createReactClass from 'create-react-class';
 import Reflux from 'reflux';
 import {Link, browserHistory} from 'react-router';
 import Cookies from 'js-cookie';
@@ -28,11 +29,12 @@ import {t, tn, tct} from '../locale';
 
 const MAX_TAGS = 500;
 
-const Stream = React.createClass({
+const Stream = createReactClass({
+  displayName: 'Stream',
+
   propTypes: {
     defaultSort: PropTypes.string,
     defaultStatsPeriod: PropTypes.string,
-    defaultQuery: PropTypes.string,
     maxItems: PropTypes.number,
     setProjectNavSection: PropTypes.func,
   },
@@ -46,7 +48,6 @@ const Stream = React.createClass({
 
   getDefaultProps() {
     return {
-      defaultQuery: null,
       defaultSort: 'date',
       defaultStatsPeriod: '24h',
       maxItems: 25,
@@ -84,7 +85,6 @@ const Stream = React.createClass({
       tags: StreamTagStore.getAllTags(),
       tagsLoading: true,
       isSidebarVisible: false,
-      isStickyHeader: false,
       processingIssues: null,
       ...this.getQueryState(),
     };
@@ -104,14 +104,17 @@ const Stream = React.createClass({
   },
 
   componentWillReceiveProps(nextProps) {
-    // you cannot apply both a query and a saved search (our routes do not
-    // support it), so the searchId takes priority
     if (this.state.loading) {
       return;
     }
 
-    this.fetchData();
+    // Do not make new API request if props haven't actually changed
+    if (!_.isEqual(this.props, nextProps)) {
+      this.fetchData();
+    }
 
+    // you cannot apply both a query and a saved search (our routes do not
+    // support it), so the searchId takes priority
     let searchIdChanged = this.state.isDefaultSearch
       ? nextProps.params.searchId
       : nextProps.params.searchId !== this.state.searchId;
@@ -123,7 +126,7 @@ const Stream = React.createClass({
   },
 
   shouldComponentUpdate(nextProps, nextState) {
-    return !_.isEqual(this.state, nextState, true);
+    return !_.isEqual(this.state, nextState);
   },
 
   componentDidUpdate(prevProps, prevState) {
@@ -265,7 +268,7 @@ const Stream = React.createClass({
     this.setState({
       savedSearchList,
     });
-    browserHistory.pushState(null, `/${orgId}/${projectId}/searches/${data.id}/`);
+    browserHistory.push(`/${orgId}/${projectId}/searches/${data.id}/`);
   },
 
   getQueryState(props) {
@@ -274,17 +277,16 @@ const Stream = React.createClass({
     // state may not yet be defined at this point
     let state = this.state || {};
 
-    let hasQuery = currentQuery.hasOwnProperty('query');
+    let hasQuery = 'query' in currentQuery;
 
     let searchId = hasQuery ? null : props.params.searchId || state.searchId || null;
 
-    let sort = currentQuery.hasOwnProperty('sort')
-      ? currentQuery.sort
-      : this.props.defaultSort;
+    let sort = 'sort' in currentQuery ? currentQuery.sort : this.props.defaultSort;
 
-    let statsPeriod = currentQuery.hasOwnProperty('statsPeriod')
-      ? currentQuery.statsPeriod
-      : this.props.defaultStatsPeriod;
+    let statsPeriod =
+      'statsPeriod' in currentQuery
+        ? currentQuery.statsPeriod
+        : this.props.defaultStatsPeriod;
 
     if (statsPeriod !== '14d' && statsPeriod !== '24h') {
       statsPeriod = this.props.defaultStatsPeriod;
@@ -329,7 +331,7 @@ const Stream = React.createClass({
   hasQuery(props) {
     props = props || this.props;
     let currentQuery = props.location.query || {};
-    return currentQuery.hasOwnProperty('query');
+    return 'query' in currentQuery;
   },
 
   fetchData() {
@@ -352,7 +354,7 @@ const Stream = React.createClass({
     };
 
     let currentQuery = this.props.location.query || {};
-    if (currentQuery.hasOwnProperty('cursor')) {
+    if ('cursor' in currentQuery) {
       requestParams.cursor = currentQuery.cursor;
     }
 
@@ -372,14 +374,12 @@ const Stream = React.createClass({
         // different projects.
         if (jqXHR.getResponseHeader('X-Sentry-Direct-Hit') === '1') {
           if (data[0].matchingEventId) {
-            return void browserHistory.pushState(
-              null,
+            return void browserHistory.push(
               `/${this.props.params.orgId}/${data[0].project.slug}/issues/${data[0]
                 .id}/events/${data[0].matchingEventId}/`
             );
           }
-          return void browserHistory.pushState(
-            null,
+          return void browserHistory.push(
             `/${this.props.params.orgId}/${data[0].project.slug}/issues/${data[0].id}/`
           );
         }
@@ -508,12 +508,6 @@ const Stream = React.createClass({
     });
   },
 
-  onStickyStateChange(state) {
-    this.setState({
-      isStickyHeader: state,
-    });
-  },
-
   /**
    * Returns true if all results in the current query are visible/on this page
    */
@@ -527,7 +521,7 @@ const Stream = React.createClass({
   transitionTo() {
     let queryParams = {};
 
-    if (!this.state.searchId && this.state.query !== this.props.defaultQuery) {
+    if (!this.state.searchId) {
       queryParams.query = this.state.query;
     }
 
@@ -544,7 +538,10 @@ const Stream = React.createClass({
       ? `/${params.orgId}/${params.projectId}/searches/${this.state.searchId}/`
       : `/${params.orgId}/${params.projectId}/`;
 
-    browserHistory.pushState(null, path, queryParams);
+    browserHistory.push({
+      pathname: path,
+      query: queryParams,
+    });
   },
 
   createSampleEvent() {
@@ -553,8 +550,7 @@ const Stream = React.createClass({
     this.api.request(url, {
       method: 'POST',
       success: data => {
-        browserHistory.pushState(
-          null,
+        browserHistory.push(
           `/${params.orgId}/${params.projectId}/issues/${data.groupID}/`
         );
       },
@@ -625,6 +621,7 @@ const Stream = React.createClass({
       </div>
     );
   },
+
   renderGroupNodes(ids, statsPeriod) {
     let {orgId, projectId} = this.props.params;
     let groupNodes = ids.map(id => {
@@ -644,6 +641,7 @@ const Stream = React.createClass({
       </ul>
     );
   },
+
   renderAwaitingEvents() {
     let org = this.getOrganization();
     let project = this.getProject();
@@ -696,6 +694,7 @@ const Stream = React.createClass({
       </div>
     );
   },
+
   renderEmpty() {
     return (
       <div className="box empty-stream">
@@ -704,6 +703,7 @@ const Stream = React.createClass({
       </div>
     );
   },
+
   renderLoading() {
     return (
       <div className="box">
@@ -711,6 +711,7 @@ const Stream = React.createClass({
       </div>
     );
   },
+
   renderStreamBody() {
     let body;
     let project = this.getProject();
@@ -727,6 +728,7 @@ const Stream = React.createClass({
     }
     return body;
   },
+
   render() {
     // global loading
     if (this.state.loading) {
@@ -753,7 +755,6 @@ const Stream = React.createClass({
               searchId={searchId}
               queryCount={this.state.queryCount}
               queryMaxCount={this.state.queryMaxCount}
-              defaultQuery={this.props.defaultQuery}
               onSortChange={this.onSortChange}
               onSearch={this.onSearch}
               onSavedSearchCreate={this.onSavedSearchCreate}
@@ -761,9 +762,9 @@ const Stream = React.createClass({
               isSearchDisabled={this.state.isSidebarVisible}
               savedSearchList={this.state.savedSearchList}
             />
-            <Sticky onStickyStateChange={this.onStickyStateChange}>
-              <div className="group-header">
-                <div className={this.state.isStickyHeader ? 'container' : null}>
+            <Sticky topOffset={59}>
+              {props => (
+                <div className={classNames('group-header', {sticky: props.isSticky})}>
                   <StreamActions
                     orgId={params.orgId}
                     projectId={params.projectId}
@@ -778,7 +779,7 @@ const Stream = React.createClass({
                     allResultsVisible={this.allResultsVisible()}
                   />
                 </div>
-              </div>
+              )}
             </Sticky>
             {this.renderProcessingIssuesHint()}
             {this.renderStreamBody()}

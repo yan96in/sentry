@@ -1,13 +1,18 @@
 import PropTypes from 'prop-types';
 import React from 'react';
+import createReactClass from 'create-react-class';
 
+import {FormState, BooleanField} from '../components/forms';
+import {t} from '../locale';
 import ApiMixin from '../mixins/apiMixin';
 import IndicatorStore from '../stores/indicatorStore';
 import LoadingIndicator from '../components/loadingIndicator';
-import {FormState, BooleanField} from '../components/forms';
-import {t} from '../locale';
+import SettingsPageHeader from './settings/components/settingsPageHeader';
+import TextBlock from './settings/components/text/textBlock';
 
-const ProjectFeedbackSettingsForm = React.createClass({
+const ProjectFeedbackSettingsForm = createReactClass({
+  displayName: 'ProjectFeedbackSettingsForm',
+
   propTypes: {
     orgId: PropTypes.string.isRequired,
     projectId: PropTypes.string.isRequired,
@@ -109,7 +114,9 @@ const ProjectFeedbackSettingsForm = React.createClass({
   },
 });
 
-const ProjectUserReportSettings = React.createClass({
+const ProjectUserReportSettings = createReactClass({
+  displayName: 'ProjectUserReportSettings',
+
   propTypes: {
     setProjectNavSection: PropTypes.func,
   },
@@ -284,26 +291,26 @@ const ProjectUserReportSettings = React.createClass({
 
     let {orgId, projectId} = this.props.params;
 
-    // TODO(dcramer): localize when language is final
     return (
       <div>
-        <h1>{t('User Feedback')}</h1>
+        <SettingsPageHeader title={t('User Feedback')} />
 
         <div className="alert alert-block alert-info">
           Psst! This feature is still a work-in-progress. Thanks for being an early
           adopter!
         </div>
 
-        <p>
+        <TextBlock>
           Enabling User Feedback allows you to interact with your users on an
           unprecedented level. Collect additional details about issues affecting them, and
           more importantly reach out to them with resolutions.
-        </p>
-        <p>
+        </TextBlock>
+        <TextBlock>
           When configured, your users will be presented with a dialog prompting them for
           additional information. That information will get attached to the issue in
           Sentry
-        </p>
+        </TextBlock>
+
         <p>
           <a className="btn btn-primary" onClick={this.handleClick}>
             See the report dialog in action
@@ -314,16 +321,19 @@ const ProjectUserReportSettings = React.createClass({
           <div className="box-header">
             <h3>{t('Integration')}</h3>
           </div>
+
           <div className="box-content with-padding">
-            <p>
+            <TextBlock>
               The following example uses our Django integration. Check the documentation
               for the SDK you're using for more details.
-            </p>
+            </TextBlock>
             <pre>{this.getInstructions()}</pre>
-            <p>
+
+            <TextBlock>
               If you're capturing an error with our Browser JS SDK, things get even
               simpler:
-            </p>
+            </TextBlock>
+
             <pre>{this.getBrowserJSInstructions()}</pre>
           </div>
         </div>

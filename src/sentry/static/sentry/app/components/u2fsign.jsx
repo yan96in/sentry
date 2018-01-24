@@ -4,23 +4,21 @@ import React from 'react';
 import U2fInterface from './u2finterface';
 import {t} from '../locale';
 
-const U2fSign = React.createClass({
-  propTypes: {
+class U2fSign extends React.Component {
+  static propTypes = {
     challengeData: PropTypes.object,
     displayMode: PropTypes.string,
-  },
+  };
 
-  getDefaultProps() {
-    return {
-      displayMode: 'signin',
-    };
-  },
+  static defaultProps = {
+    displayMode: 'signin',
+  };
 
   render() {
-    const {displayMode} = this.props;
+    const {displayMode, ...props} = this.props;
     return (
       <U2fInterface
-        challengeData={this.props.challengeData}
+        {...props}
         silentIfUnsupported={displayMode === 'sudo'}
         flowMode={'sign'}
       >
@@ -42,7 +40,7 @@ const U2fSign = React.createClass({
         </p>
       </U2fInterface>
     );
-  },
-});
+  }
+}
 
 export default U2fSign;

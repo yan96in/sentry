@@ -5,14 +5,16 @@ import GroupSeenBy from 'app/views/groupDetails/seenBy';
 import ConfigStore from 'app/stores/configStore';
 
 describe('GroupSeenBy', function() {
-  beforeEach(function() {
-    this.sandbox = sinon.sandbox.create();
+  let sandbox;
 
-    this.sandbox.stub(ConfigStore, 'get').returns([]);
+  beforeEach(function() {
+    sandbox = sinon.sandbox.create();
+
+    sandbox.stub(ConfigStore, 'get').returns([]);
   });
 
   afterEach(function() {
-    this.sandbox.restore();
+    sandbox.restore();
   });
 
   describe('render()', function() {
@@ -20,7 +22,11 @@ describe('GroupSeenBy', function() {
       let wrapper = shallow(<GroupSeenBy />, {
         context: {
           group: {id: '1337'},
-          project: {id: '2448'},
+          project: {
+            id: '2448',
+            name: 'project name',
+            slug: 'project-name',
+          },
           team: {id: '3559'},
         },
       });
@@ -37,7 +43,11 @@ describe('GroupSeenBy', function() {
               {id: 2, email: 'john@example.com'},
             ],
           },
-          project: {id: '2448'},
+          project: {
+            id: '2448',
+            name: 'project name',
+            slug: 'project-name',
+          },
           team: {id: '3559'},
         },
       });

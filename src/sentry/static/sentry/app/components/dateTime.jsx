@@ -1,29 +1,32 @@
 import PropTypes from 'prop-types';
 import React from 'react';
-import moment from 'moment';
+import moment from 'moment-timezone';
 import _ from 'lodash';
 
 import ConfigStore from '../stores/configStore';
 
-const DateTime = React.createClass({
-  propTypes: {
+class DateTime extends React.Component {
+  static propTypes = {
     date: PropTypes.any.isRequired,
     dateOnly: PropTypes.bool,
+    shortDate: PropTypes.bool,
     seconds: PropTypes.bool,
-  },
+  };
 
-  getDefaultProps() {
-    return {
-      seconds: true,
-    };
-  },
+  static defaultProps = {
+    seconds: true,
+  };
 
-  getFormat({clock24Hours}) {
-    let {dateOnly, seconds} = this.props;
+  getFormat = ({clock24Hours}) => {
+    let {dateOnly, seconds, shortDate} = this.props;
 
     // October 26, 2017
     if (dateOnly) {
       return 'LL';
+    }
+
+    if (shortDate) {
+      return 'MM/DD/YYYY';
     }
 
     if (clock24Hours) {
@@ -37,13 +40,15 @@ const DateTime = React.createClass({
 
     // Default is Oct 26, 2017 11:30 AM
     return 'lll';
-  },
+  };
 
   render() {
     let {
       date,
       // eslint-disable-next-line no-unused-vars
       seconds,
+      // eslint-disable-next-line no-unused-vars
+      shortDate,
       ...carriedProps
     } = this.props;
     let user = ConfigStore.get('user');
@@ -54,8 +59,10 @@ const DateTime = React.createClass({
       date = new Date(date);
     }
 
-    return <time {...carriedProps}>{moment(date).format(format)}</time>;
-  },
-});
+    return (
+      <time {...carriedProps}>{moment.tz(date, options.timezone).format(format)}</time>
+    );
+  }
+}
 
 export default DateTime;

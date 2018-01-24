@@ -13,6 +13,7 @@ from django.utils import timezone
 from sentry.db.models import (
     Model, BoundedPositiveIntegerField, FlexibleForeignKey, GzippedDictField, sane_repr
 )
+from sentry.utils.strings import truncatechars
 
 
 class AuditLogEntryEvent(object):
@@ -62,8 +63,16 @@ class AuditLogEntryEvent(object):
     RULE_EDIT = 81
     RULE_REMOVE = 82
 
+    SET_ONDEMAND = 90
     TRIAL_STARTED = 91
     PLAN_CHANGED = 92
+
+
+    SERVICEHOOK_ADD = 100
+    SERVICEHOOK_EDIT = 101
+    SERVICEHOOK_REMOVE = 102
+    SERVICEHOOK_ENABLE = 103
+    SERVICEHOOK_DISABLE = 104
 
 
 class AuditLogEntry(Model):
@@ -122,6 +131,12 @@ class AuditLogEntry(Model):
             (AuditLogEntryEvent.RULE_REMOVE, 'rule.remove'),
             (AuditLogEntryEvent.TRIAL_STARTED, 'trial.started'),
             (AuditLogEntryEvent.PLAN_CHANGED, 'plan.changed'),
+            (AuditLogEntryEvent.SET_ONDEMAND, 'ondemand.edit'),
+            (AuditLogEntryEvent.SERVICEHOOK_ADD, 'serivcehook.create'),
+            (AuditLogEntryEvent.SERVICEHOOK_EDIT, 'serivcehook.edit'),
+            (AuditLogEntryEvent.SERVICEHOOK_REMOVE, 'serivcehook.remove'),
+            (AuditLogEntryEvent.SERVICEHOOK_ENABLE, 'serivcehook.enable'),
+            (AuditLogEntryEvent.SERVICEHOOK_DISABLE, 'serivcehook.disable'),
         )
     )
     ip_address = models.GenericIPAddressField(null=True, unpack_ipv4=True)
@@ -252,5 +267,18 @@ class AuditLogEntry(Model):
             return 'started trial'
         elif self.event == AuditLogEntryEvent.PLAN_CHANGED:
             return 'changed plan to %s' % (self.data['plan_name'], )
+        elif self.event == AuditLogEntryEvent.SET_ONDEMAND:
+            return 'changed on-demand max spend to $%d' % (self.data['ondemand'] / 100, )
+
+        elif self.event == AuditLogEntryEvent.SERVICEHOOK_ADD:
+            return 'added a service hook for "%s"' % (truncatechars(self.data['url'], 64), )
+        elif self.event == AuditLogEntryEvent.SERVICEHOOK_EDIT:
+            return 'edited the service hook for "%s"' % (truncatechars(self.data['url'], 64), )
+        elif self.event == AuditLogEntryEvent.SERVICEHOOK_REMOVE:
+            return 'removed the service hook for "%s"' % (truncatechars(self.data['url'], 64), )
+        elif self.event == AuditLogEntryEvent.SERVICEHOOK_ENABLE:
+            return 'enabled theservice hook for "%s"' % (truncatechars(self.data['url'], 64), )
+        elif self.event == AuditLogEntryEvent.SERVICEHOOK_DISABLE:
+            return 'disabled the service hook for "%s"' % (truncatechars(self.data['url'], 64), )
 
         return ''

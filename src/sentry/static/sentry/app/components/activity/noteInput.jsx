@@ -1,8 +1,8 @@
 import PropTypes from 'prop-types';
 import React from 'react';
+import createReactClass from 'create-react-class';
 import marked from 'marked';
 import {MentionsInput, Mention} from 'react-mentions';
-import PureRenderMixin from 'react-addons-pure-render-mixin';
 
 import ApiMixin from '../../mixins/apiMixin';
 import GroupStore from '../../stores/groupStore';
@@ -18,7 +18,9 @@ function makeDefaultErrorJson() {
   return {detail: t('Unknown error. Please try again.')};
 }
 
-const NoteInput = React.createClass({
+const NoteInput = createReactClass({
+  displayName: 'NoteInput',
+
   propTypes: {
     item: PropTypes.object,
     group: PropTypes.object.isRequired,
@@ -27,7 +29,7 @@ const NoteInput = React.createClass({
     sessionUser: PropTypes.object.isRequired,
   },
 
-  mixins: [PureRenderMixin, ApiMixin],
+  mixins: [ApiMixin],
 
   getInitialState() {
     let {item, group} = this.props;
@@ -249,7 +251,7 @@ const NoteInput = React.createClass({
     let btnText = updating ? t('Save Comment') : t('Post Comment');
 
     return (
-      <form className={classNames} onSubmit={this.onSubmit}>
+      <form noValidate className={classNames} onSubmit={this.onSubmit}>
         <div className="activity-notes">
           <ul className="nav nav-tabs">
             <li className={!preview ? 'active' : ''}>

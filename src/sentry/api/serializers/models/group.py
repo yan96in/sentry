@@ -13,7 +13,7 @@ from sentry import tagstore, tsdb
 from sentry.api.serializers import Serializer, register, serialize
 from sentry.constants import LOG_LEVELS, StatsPeriod
 from sentry.models import (
-    Group, GroupAssignee, GroupBookmark, GroupMeta, GroupResolution, GroupSeen, GroupSnooze,
+    Environment, Group, GroupAssignee, GroupBookmark, GroupMeta, GroupResolution, GroupSeen, GroupSnooze,
     GroupShare, GroupStatus, GroupSubscription, GroupSubscriptionReason, User, UserOption,
     UserOptionValue
 )
@@ -35,6 +35,9 @@ disabled = object()
 
 @register(Group)
 class GroupSerializer(Serializer):
+    def __init__(self, environment_func=None):
+        self.environment_func = environment_func if environment_func is not None else lambda: None
+
     def _get_subscriptions(self, item_list, user):
         """
         Returns a mapping of group IDs to a two-tuple of (subscribed: bool,
@@ -141,8 +144,14 @@ class GroupSerializer(Serializer):
             ).select_related('user')
         )
 
-        user_counts = tagstore.get_group_values_seen(
-            [g.id for g in item_list], environment_id=None, key='sentry:user')
+        try:
+            environment = self.environment_func()
+        except Environment.DoesNotExist:
+            user_counts = {}
+        else:
+            environment_id = environment and environment.id
+            user_counts = tagstore.get_groups_user_counts(
+                item_list[0].project_id, [g.id for g in item_list], environment_id=environment_id)
 
         ignore_items = {g.group_id: g for g in GroupSnooze.objects.filter(
             group__in=item_list,
@@ -328,7 +337,9 @@ class StreamGroupSerializer(GroupSerializer):
         '24h': StatsPeriod(24, timedelta(hours=1)),
     }
 
-    def __init__(self, stats_period=None, matching_event_id=None):
+    def __init__(self, environment_func=None, stats_period=None, matching_event_id=None):
+        super(StreamGroupSerializer, self).__init__(environment_func)
+
         if stats_period is not None:
             assert stats_period in self.STATS_PERIOD_CHOICES
 
@@ -344,15 +355,26 @@ class StreamGroupSerializer(GroupSerializer):
 
             segments, interval = self.STATS_PERIOD_CHOICES[self.stats_period]
             now = timezone.now()
-            stats = tsdb.get_range(
-                model=tsdb.models.group,
-                keys=group_ids,
-                end=now,
-                start=now - ((segments - 1) * interval),
-                rollup=int(interval.total_seconds()),
-            )
+            query_params = {
+                'start': now - ((segments - 1) * interval),
+                'end': now,
+                'rollup': int(interval.total_seconds()),
+            }
+
+            try:
+                environment = self.environment_func()
+            except Environment.DoesNotExist:
+                stats = {key: tsdb.make_series(0, **query_params) for key in group_ids}
+            else:
+                stats = tsdb.get_range(
+                    model=tsdb.models.group,
+                    keys=group_ids,
+                    environment_id=environment and environment.id,
+                    **query_params
+                )
 
             for item in item_list:
+
                 attrs[item].update({
                     'stats': stats[item.id],
                 })

@@ -1,4 +1,5 @@
 import React from 'react';
+import createReactClass from 'create-react-class';
 import PropTypes from 'prop-types';
 import moment from 'moment';
 import _ from 'lodash';
@@ -7,7 +8,9 @@ import TooltipMixin from '../mixins/tooltip';
 import Count from './count';
 import ConfigStore from '../stores/configStore';
 
-const StackedBarChart = React.createClass({
+const StackedBarChart = createReactClass({
+  displayName: 'StackedBarChart',
+
   propTypes: {
     // TODO(dcramer): DEPRECATED, use series instead
     points: PropTypes.arrayOf(
@@ -28,7 +31,6 @@ const StackedBarChart = React.createClass({
         label: PropTypes.string,
       })
     ),
-    interval: PropTypes.string,
     height: PropTypes.number,
     width: PropTypes.number,
     placement: PropTypes.string,
@@ -158,7 +160,7 @@ const StackedBarChart = React.createClass({
   },
 
   shouldComponentUpdate(nextProps, nextState) {
-    return !_.isEqual(this.props, nextProps, true);
+    return !_.isEqual(this.props, nextProps);
   },
 
   use24Hours() {
@@ -348,14 +350,12 @@ const StackedBarChart = React.createClass({
   },
 
   render() {
-    let figureClass = [this.props.className, 'barchart'].join(' ');
+    let {className, style, height, width} = this.props;
+    let figureClass = [className, 'barchart'].join(' ');
     let maxval = this.maxPointValue();
 
     return (
-      <figure
-        className={figureClass}
-        style={{height: this.props.height, width: this.props.width}}
-      >
+      <figure className={figureClass} style={{height, width, ...style}}>
         <span className="max-y">
           <Count value={maxval} />
         </span>

@@ -7,6 +7,7 @@ from sentry.api.base import EnvironmentMixin
 from sentry.api.bases.project import ProjectEndpoint
 from sentry.api.exceptions import ResourceDoesNotExist
 from sentry.api.serializers import serialize
+from sentry.constants import PROTECTED_TAG_KEYS
 from sentry.models import AuditLogEntryEvent, Environment
 
 
@@ -34,17 +35,13 @@ class ProjectTagKeyDetailsEndpoint(ProjectEndpoint, EnvironmentMixin):
             {method} {path}
 
         """
+        if key in PROTECTED_TAG_KEYS:
+            return Response(status=403)
+
         lookup_key = tagstore.prefix_reserved_key(key)
 
         try:
-            environment_id = self._get_environment_id_from_request(request, project.organization_id)
-        except Environment.DoesNotExist:
-            # if the environment doesn't exist then the tag can't possibly exist
-            raise ResourceDoesNotExist
-
-        try:
-            deleted = tagstore.delete_tag_keys(
-                project.id, lookup_key, environment_id=environment_id)
+            deleted = tagstore.delete_tag_key(project.id, lookup_key)
         except tagstore.TagKeyNotFound:
             raise ResourceDoesNotExist
 

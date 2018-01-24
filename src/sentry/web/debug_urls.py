@@ -14,6 +14,7 @@ from sentry.web.frontend.debug.debug_invalid_identity_email import DebugInvalidI
 from sentry.web.frontend.debug.debug_mfa_added_email import (DebugMfaAddedEmailView)
 from sentry.web.frontend.debug.debug_mfa_removed_email import (DebugMfaRemovedEmailView)
 from sentry.web.frontend.debug.debug_new_release_email import (DebugNewReleaseEmailView)
+from sentry.web.frontend.debug.debug_new_user_feedback_email import (DebugNewUserFeedbackEmailView)
 from sentry.web.frontend.debug.debug_note_email import DebugNoteEmailView
 from sentry.web.frontend.debug.debug_password_changed_email import (DebugPasswordChangedEmailView)
 from sentry.web.frontend.debug.debug_regression_email import (
@@ -35,6 +36,7 @@ from sentry.web.frontend.debug.debug_sso_link_email import (
     DebugSsoUnlinkedEmailView,
     DebugSsoUnlinkedNoPasswordEmailView,
 )
+from sentry.web.frontend.debug.debug_setup_2fa_email import DebugSetup2faEmailView
 from sentry.web.frontend.debug import debug_auth_views
 from sentry.web.frontend.debug.debug_oauth_authorize import (
     DebugOAuthAuthorizeView,
@@ -46,6 +48,7 @@ urlpatterns = patterns(
     url(r'^debug/mail/alert/$', sentry.web.frontend.debug.mail.alert),
     url(r'^debug/mail/note/$', DebugNoteEmailView.as_view()),
     url(r'^debug/mail/new-release/$', DebugNewReleaseEmailView.as_view()),
+    url(r'^debug/mail/new-user-feedback/$', DebugNewUserFeedbackEmailView.as_view()),
     url(r'^debug/mail/assigned/$', DebugAssignedEmailView.as_view()),
     url(r'^debug/mail/assigned/self/$', DebugSelfAssignedEmailView.as_view()),
     url(r'^debug/mail/digest/$', sentry.web.frontend.debug.mail.digest),
@@ -79,6 +82,8 @@ urlpatterns = patterns(
     url(r'^debug/mail/sso-linked/$', DebugSsoLinkedEmailView.as_view()),
     url(r'^debug/mail/sso-unlinked/$', DebugSsoUnlinkedEmailView.as_view()),
     url(r'^debug/mail/sso-unlinked/no-password$', DebugSsoUnlinkedNoPasswordEmailView.as_view()),
+
+    url(r'^debug/mail/setup-2fa/$', DebugSetup2faEmailView.as_view()),
 
     url(r'^debug/embed/error-page/$', DebugErrorPageEmbedView.as_view()),
     url(r'^debug/trigger-error/$', DebugTriggerErrorView.as_view()),

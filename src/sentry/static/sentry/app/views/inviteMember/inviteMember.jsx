@@ -1,21 +1,54 @@
+import {browserHistory} from 'react-router';
 import React from 'react';
+import createReactClass from 'create-react-class';
 import classNames from 'classnames';
+import PropTypes from 'prop-types';
 
-import OrganizationState from '../../mixins/organizationState';
-import ApiMixin from '../../mixins/apiMixin';
+import {t} from '../../locale';
 import AlertActions from '../../actions/alertActions';
-
+import ApiMixin from '../../mixins/apiMixin';
 import Button from '../../components/buttons/button';
+import ConfigStore from '../../stores/configStore';
 import LoadingIndicator from '../../components/loadingIndicator';
-import TextField from '../../components/forms/textField';
-
+import OrganizationState from '../../mixins/organizationState';
 import RoleSelect from './roleSelect';
 import TeamSelect from './teamSelect';
+import TextField from '../../components/forms/textField';
+import recreateRoute from '../../utils/recreateRoute';
 
-import ConfigStore from '../../stores/configStore';
-import {t} from '../../locale';
+// These don't have allowed and are only used for superusers. superceded by server result of allowed roles
+const STATIC_ROLE_LIST = [
+  {
+    id: 'member',
+    name: 'Member',
+    desc:
+      'Members can view and act on events, as well as view most other data within the organization.',
+  },
+  {
+    id: 'admin',
+    name: 'Admin',
+    desc:
+      "Admin privileges on any teams of which they're a member. They can create new teams and projects, as well as remove teams and projects which they already hold membership on.",
+  },
+  {
+    id: 'manager',
+    name: 'Manager',
+    desc:
+      'Gains admin access on all teams as well as the ability to add and remove members.',
+  },
+  {
+    id: 'owner',
+    name: 'Owner',
+    desc:
+      'Gains full permission across the organization. Can manage members as well as perform catastrophic operations such as removing the organization.',
+  },
+];
 
-const InviteMember = React.createClass({
+const InviteMember = createReactClass({
+  displayName: 'InviteMember',
+  propTypes: {
+    routes: PropTypes.array,
+  },
   mixins: [ApiMixin, OrganizationState],
 
   getInitialState() {
@@ -37,6 +70,8 @@ const InviteMember = React.createClass({
 
   componentDidMount() {
     let {slug} = this.getOrganization();
+    let {isSuperuser} = ConfigStore.get('user');
+
     this.api.request(`/organizations/${slug}/members/me/`, {
       method: 'GET',
       success: resp => {
@@ -63,16 +98,26 @@ const InviteMember = React.createClass({
         }
       },
       error: error => {
-        Raven.captureMessage('[members]: data fetch error ', {
-          extra: {error, state: this.state},
-        });
+        if (error.status == 404 && isSuperuser) {
+          // use the static list
+          this.setState({roleList: STATIC_ROLE_LIST, loading: false});
+        } else {
+          Raven.captureMessage('[members]: data fetch error ', {
+            extra: {error, state: this.state},
+          });
+        }
       },
     });
   },
 
   redirectToMemberPage() {
-    let {slug} = this.getOrganization();
-    window.location.href = `/organizations/${slug}/members/`;
+    // Get path to parent route (`/organizations/${slug}/members/`)
+    let pathToParentRoute = recreateRoute('', {
+      params: this.props.params,
+      routes: this.props.routes,
+      stepBack: -1,
+    });
+    browserHistory.push(pathToParentRoute);
   },
 
   splitEmails(text) {
@@ -96,6 +141,7 @@ const InviteMember = React.createClass({
           role: selectedRole,
         },
         success: () => {
+          // TODO(billy): Use SettingsIndicator when these views only exist in Settings area
           AlertActions.addAlert({
             message: `Added ${email}`,
             type: 'success',
@@ -105,7 +151,7 @@ const InviteMember = React.createClass({
         error: err => {
           if (err.status === 403) {
             AlertActions.addAlert({
-              message: "You aren't allowed to invite members.",
+              message: t("You aren't allowed to invite members."),
               type: 'error',
             });
             reject(err.responseJSON);
@@ -129,10 +175,10 @@ const InviteMember = React.createClass({
     if (!emails.length) return;
     this.setState({busy: true});
     Promise.all(emails.map(this.inviteUser))
-      .then(() => setTimeout(this.redirectToMemberPage, 3000))
+      .then(() => this.redirectToMemberPage())
       .catch(error => {
         if (!error.email && !error.role) {
-          Raven.captureMessage('unkown error ', {
+          Raven.captureMessage('Unknown invite member api response', {
             extra: {error, state: this.state},
           });
         }
@@ -158,6 +204,8 @@ const InviteMember = React.createClass({
     let {error, loading, roleList, selectedRole, selectedTeams} = this.state;
     let {teams} = this.getOrganization();
     let {invitesEnabled} = ConfigStore.getConfig();
+    let {isSuperuser} = ConfigStore.get('user');
+
     return (
       <div>
         <h3>{t('Add Member to Organization')}</h3>
@@ -186,6 +234,7 @@ const InviteMember = React.createClass({
             </div>
             {error && error.role && <p className="error alert-error">{error.role}</p>}
             <RoleSelect
+              enforceAllowed={!isSuperuser}
               roleList={roleList}
               selectedRole={selectedRole}
               setRole={slug => this.setState({selectedRole: slug})}

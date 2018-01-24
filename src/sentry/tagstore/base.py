@@ -58,29 +58,83 @@ class TagStorage(Service):
         'get_group_tag_value',
         'get_group_tag_values',
 
-        'delete_tag_keys',
+        'delete_tag_key',
         'delete_all_group_tag_keys',
         'delete_all_group_tag_values',
 
-        'get_group_values_seen',
+        'get_groups_user_counts',
         'get_group_event_ids',
         'get_group_tag_value_count',
         'get_top_group_tag_values',
         'get_first_release',
         'get_last_release',
-        'incr_tag_key_values_seen',
+        'get_release_tags',
         'incr_tag_value_times_seen',
-        'incr_group_tag_key_values_seen',
         'incr_group_tag_value_times_seen',
         'get_group_ids_for_users',
         'get_group_tag_values_for_users',
-        'get_tags_for_search_filter',
+        'get_group_ids_for_search_filter',
         'update_group_tag_key_values_seen',
+        'update_group_for_events',
 
         'get_tag_value_qs',
         'get_group_tag_value_qs',
-        'get_event_tag_qs',
     )
+
+    def setup_deletions(self, tagkey_model, tagvalue_model, grouptagkey_model,
+                        grouptagvalue_model, eventtag_model):
+        from sentry.deletions import default_manager as deletion_manager
+        from sentry.deletions.defaults import BulkModelDeletionTask
+        from sentry.deletions.base import ModelRelation, ModelDeletionTask
+        from sentry.models import Group, Event, Project
+
+        deletion_manager.register(tagvalue_model, BulkModelDeletionTask)
+        deletion_manager.register(grouptagkey_model, BulkModelDeletionTask)
+        deletion_manager.register(grouptagvalue_model, BulkModelDeletionTask)
+        deletion_manager.register(eventtag_model, BulkModelDeletionTask)
+
+        deletion_manager.add_dependencies(Group, [
+            lambda instance: ModelRelation(eventtag_model, {'group_id': instance.id}),
+            lambda instance: ModelRelation(grouptagkey_model, {'group_id': instance.id}),
+            lambda instance: ModelRelation(grouptagvalue_model, {'group_id': instance.id}),
+        ])
+        deletion_manager.add_bulk_dependencies(Event, [
+            lambda instance_list: ModelRelation(eventtag_model,
+                                                {'event_id__in': [i.id for i in instance_list]},
+                                                ModelDeletionTask),
+        ])
+
+        deletion_manager.add_dependencies(Project, [
+            lambda instance: ModelRelation(tagkey_model, {'project_id': instance.id}),
+            lambda instance: ModelRelation(tagvalue_model, {'project_id': instance.id}),
+            lambda instance: ModelRelation(grouptagkey_model, {'project_id': instance.id}),
+            lambda instance: ModelRelation(grouptagvalue_model, {'project_id': instance.id}),
+        ])
+
+    def setup_cleanup(self, tagvalue_model, grouptagvalue_model, eventtag_model):
+        from sentry.runner.commands import cleanup
+
+        cleanup.EXTRA_BULK_QUERY_DELETES += [
+            (grouptagvalue_model, 'last_seen', None),
+            (tagvalue_model, 'last_seen', None),
+            (eventtag_model, 'date_added', 'date_added'),
+        ]
+
+    def setup_merge(self, grouptagkey_model, grouptagvalue_model):
+        from sentry.tasks import merge
+
+        merge.EXTRA_MERGE_MODELS += [
+            grouptagvalue_model,
+            grouptagkey_model,
+        ]
+
+    def setup_receivers(self, tagvalue_model, grouptagvalue_model):
+        from django.db.models.signals import post_save
+        from sentry.receivers.releases import ensure_release_exists
+
+        post_save.connect(
+            ensure_release_exists, sender=tagvalue_model, dispatch_uid="ensure_release_exists", weak=False
+        )
 
     def is_valid_key(self, key):
         return bool(TAG_KEY_RE.match(key))
@@ -161,7 +215,8 @@ class TagStorage(Service):
         """
         raise NotImplementedError
 
-    def create_group_tag_value(self, project_id, group_id, environment_id, key, value, **kwargs):
+    def create_group_tag_value(self, project_id, group_id, environment_id,
+                               key, value, **kwargs):
         """
         >>> create_group_tag_value(1, 2, 3, "key1", "value1")
         """
@@ -176,7 +231,7 @@ class TagStorage(Service):
 
     def create_event_tags(self, project_id, group_id, environment_id, event_id, tags):
         """
-        >>> create_event_tags(1, 2, 3, 4, [(5, 6)])
+        >>> create_event_tags(1, 2, 3, 4, [('foo', 'bar'), ('baz', 'qux')])
         """
         raise NotImplementedError
 
@@ -186,10 +241,9 @@ class TagStorage(Service):
         """
         raise NotImplementedError
 
-    def get_tag_keys(self, project_ids, environment_id, keys=None, status=TagKeyStatus.VISIBLE):
+    def get_tag_keys(self, project_id, environment_id, status=TagKeyStatus.VISIBLE):
         """
-        >>> get_tag_key([1, 2], 3, ["key1", "key2"])
-        >>> get_tag_key(1, 3, ["key1", "key2"])
+        >>> get_tag_key(1, 2)
         """
         raise NotImplementedError
 
@@ -199,60 +253,51 @@ class TagStorage(Service):
         """
         raise NotImplementedError
 
-    def get_tag_values(self, project_ids, environment_id, key, values=None):
+    def get_tag_values(self, project_id, environment_id, key):
         """
-        >>> get_tag_values([1, 2], "key1", ["value1, "value2"])
-        >>> get_tag_values(1, "key1", ["value1, "value2"])
-        """
-        raise NotImplementedError
-
-    def get_group_tag_key(self, group_id, environment_id, key):
-        """
-        >>> get_group_tag_key(1, 2, "key1")
+        >>> get_tag_values(1, 2, "key1")
         """
         raise NotImplementedError
 
-    def get_group_tag_keys(self, group_ids, environment_id, keys=None, limit=None):
+    def get_group_tag_key(self, project_id, group_id, environment_id, key):
         """
-        >>> get_group_tag_keys([1, 2], 3, ["key1", "key2"])
-        >>> get_group_tag_keys(1, 3, ["key1", "key2"])
-        """
-        raise NotImplementedError
-
-    def get_group_tag_value(self, group_id, environment_id, key, value):
-        """
-        >>> get_group_tag_value(1, 2, "key1", "value1")
+        >>> get_group_tag_key(1, 2, 3, "key1")
         """
         raise NotImplementedError
 
-    def get_group_tag_values(self, group_ids, environment_id, keys=None, values=None):
+    def get_group_tag_keys(self, project_id, group_id, environment_id, limit=None):
         """
-        >>> get_group_tag_values([1, 2], 3, ["key1", "key2"], ["value1", "value2"])
-        >>> get_group_tag_values(1, 3, ["key1", "key2"], ["value1", "value2"])
-        """
-        raise NotImplementedError
-
-    def delete_tag_keys(self, project_id, keys, environment_id=None):
-        """
-        >>> delete_tag_keys(1, ["key1"])
+        >>> get_group_tag_key(1, 2, 3)
         """
         raise NotImplementedError
 
-    def delete_all_group_tag_keys(self, group_id):
+    def get_group_tag_value(self, project_id, group_id, environment_id, key, value):
         """
-        >>> delete_all_group_tag_keys(1)
-        """
-        raise NotImplementedError
-
-    def delete_all_group_tag_values(self, group_id):
-        """
-        >>> delete_all_group_tag_values(1)
+        >>> get_group_tag_value(1, 2, 3, "key1", "value1")
         """
         raise NotImplementedError
 
-    def incr_tag_key_values_seen(self, project_id, environment_id, key, count=1):
+    def get_group_tag_values(self, project_id, group_id, environment_id, key):
         """
-        >>> incr_tag_key_values_seen(1, 2, "key1")
+        >>> get_group_tag_values(1, 2, 3, "key1")
+        """
+        raise NotImplementedError
+
+    def delete_tag_key(self, project_id, key):
+        """
+        >>> delete_tag_key(1, "key1")
+        """
+        raise NotImplementedError
+
+    def delete_all_group_tag_keys(self, project_id, group_id):
+        """
+        >>> delete_all_group_tag_keys(1, 2)
+        """
+        raise NotImplementedError
+
+    def delete_all_group_tag_values(self, project_id, group_id):
+        """
+        >>> delete_all_group_tag_values(1, 2)
         """
         raise NotImplementedError
 
@@ -263,16 +308,10 @@ class TagStorage(Service):
         """
         raise NotImplementedError
 
-    def incr_group_tag_key_values_seen(self, project_id, group_id, environment_id, key, count=1):
-        """
-        >>> incr_group_tag_key_values_seen(1, 2, 3, "key1")
-        """
-        raise NotImplementedError
-
     def incr_group_tag_value_times_seen(
-            self, group_id, environment_id, key, value, extra=None, count=1):
+            self, project_id, group_id, environment_id, key, value, extra=None, count=1):
         """
-        >>> incr_group_tag_value_times_seen(1, 2, "key1", "value1")
+        >>> incr_group_tag_value_times_seen(1, 2, 3, "key1", "value1")
         """
         raise NotImplementedError
 
@@ -288,39 +327,45 @@ class TagStorage(Service):
         """
         raise NotImplementedError
 
-    def get_group_tag_value_qs(self, group_id, environment_id, key):
+    def get_group_tag_value_qs(self, project_id, group_id, environment_id, key):
         """
-        >>> get_group_tag_value_qs(1, 2, 'environment')
-        """
-        raise NotImplementedError
-
-    def get_group_values_seen(self, group_ids, environment_id, key):
-        """
-        >>> get_group_values_seen([1, 2], 3, 'key1')
+        >>> get_group_tag_value_qs(1, 2, 3, 'environment')
         """
         raise NotImplementedError
 
-    def get_group_tag_value_count(self, group_id, environment_id, key):
+    def get_groups_user_counts(self, project_id, group_ids, environment_id):
         """
-        >>> get_group_tag_value_count(1, 2, 'key1')
-        """
-        raise NotImplementedError
-
-    def get_top_group_tag_values(self, group_id, environment_id, key, limit=3):
-        """
-        >>> get_top_group_tag_values(1, 2, 'key1')
+        >>> get_groups_user_counts(1, [2, 3], 4)
         """
         raise NotImplementedError
 
-    def get_first_release(self, group_id):
+    def get_group_tag_value_count(self, project_id, group_id, environment_id, key):
         """
-        >>> get_first_release(1)
+        >>> get_group_tag_value_count(1, 2, 3, 'key1')
         """
         raise NotImplementedError
 
-    def get_last_release(self, group_id):
+    def get_top_group_tag_values(self, project_id, group_id, environment_id, key, limit=3):
         """
-        >>> get_last_release(1)
+        >>> get_top_group_tag_values(1, 2, 3, 'key1')
+        """
+        raise NotImplementedError
+
+    def get_first_release(self, project_id, group_id):
+        """
+        >>> get_first_release(1, 2)
+        """
+        raise NotImplementedError
+
+    def get_last_release(self, project_id, group_id):
+        """
+        >>> get_last_release(1, 2)
+        """
+        raise NotImplementedError
+
+    def get_release_tags(self, project_ids, environment_id, versions):
+        """
+        >>> get_release_tags([1, 2], 3, ["1", "2"])
         """
         raise NotImplementedError
 
@@ -336,20 +381,20 @@ class TagStorage(Service):
         """
         raise NotImplementedError
 
-    def get_tags_for_search_filter(self, project_id, tags):
+    def get_group_ids_for_search_filter(self, project_id, environment_id, tags):
         """
-        >>> get_tags_for_search_filter(1, [('key1', 'value1'), ('key2', 'value2')])
-        """
-        raise NotImplementedError
-
-    def get_event_tag_qs(self, **kwargs):
-        """
-        >>> get_event_tag_qs(event_id=1, key_id=2)
+        >>> get_group_ids_for_search_filter(1, 2, [('key1', 'value1'), ('key2', 'value2')])
         """
         raise NotImplementedError
 
-    def update_group_tag_key_values_seen(self, group_ids):
+    def update_group_for_events(self, project_id, event_ids, destination_id):
         """
-        >>> update_group_tag_key_values_seen([1, 2])
+        >>> update_group_for_events(1, [2, 3], 4)
+        """
+        raise NotImplementedError
+
+    def update_group_tag_key_values_seen(self, project_id, group_ids):
+        """
+        >>> update_group_tag_key_values_seen(1, [2, 3])
         """
         raise NotImplementedError

@@ -7,9 +7,9 @@ import FlowLayout from '../flowLayout';
 
 import '../../../less/components/button.less';
 
-const Button = React.createClass({
-  propTypes: {
-    priority: PropTypes.oneOf(['primary', 'danger']),
+class Button extends React.Component {
+  static propTypes = {
+    priority: PropTypes.oneOf(['primary', 'danger', 'link']),
     size: PropTypes.oneOf(['small', 'xsmall', 'large']),
     disabled: PropTypes.bool,
     busy: PropTypes.bool,
@@ -27,16 +27,14 @@ const Button = React.createClass({
     title: PropTypes.string,
     borderless: PropTypes.bool,
     onClick: PropTypes.func,
-  },
+  };
 
-  getDefaultProps() {
-    return {
-      disabled: false,
-    };
-  },
+  static defaultProps = {
+    disabled: false,
+  };
 
   // Intercept onClick and propagate
-  handleClick(...args) {
+  handleClick = (...args) => {
     let {disabled, busy, onClick} = this.props;
 
     // Don't allow clicks when disabled or busy
@@ -45,7 +43,13 @@ const Button = React.createClass({
     if (typeof onClick !== 'function') return;
 
     onClick(...args);
-  },
+  };
+
+  getUrl = () => {
+    let {disabled, to, href} = this.props;
+    if (disabled) return null;
+    return to || href;
+  };
 
   render() {
     let {
@@ -69,13 +73,15 @@ const Button = React.createClass({
 
     let isPrimary = priority === 'primary' && !disabled;
     let isDanger = priority === 'danger' && !disabled;
+    let isLink = priority === 'link';
 
     let cx = classNames(className, 'button', {
       tip: !!title,
       'button-no-border': borderless,
       'button-primary': isPrimary,
       'button-danger': isDanger,
-      'button-default': !isPrimary && !isDanger,
+      'button-link': isLink && !isPrimary && !isDanger,
+      'button-default': !isLink && !isPrimary && !isDanger,
       'button-sm': size === 'small',
       'button-xs': size === 'xsmall',
       'button-lg': size === 'large',
@@ -108,17 +114,17 @@ const Button = React.createClass({
 
     // Handle react-router Links
     if (to) {
-      return <Link to={to} {...componentProps} />;
+      return <Link to={this.getUrl()} {...componentProps} />;
     }
 
     // Handle traditional links
     if (href) {
-      return <a href={href} {...componentProps} />;
+      return <a href={this.getUrl()} {...componentProps} />;
     }
 
     // Otherwise, fall back to basic button element
     return <button {...componentProps} />;
-  },
-});
+  }
+}
 
 export default Button;

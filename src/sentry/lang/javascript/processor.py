@@ -56,7 +56,7 @@ CLEAN_MODULE_RE = re.compile(
 VERSION_RE = re.compile(r'^[a-f0-9]{32}|[a-f0-9]{40}$', re.I)
 NODE_MODULES_RE = re.compile(r'\bnode_modules/')
 SOURCE_MAPPING_URL_RE = re.compile(r'\/\/# sourceMappingURL=(.*)$')
-# the maximum number of remote resources (i.e. sourc eifles) that should be
+# the maximum number of remote resources (i.e. source files) that should be
 # fetched
 MAX_RESOURCE_FETCHES = 100
 
@@ -325,16 +325,23 @@ def fetch_file(url, project=None, release=None, dist=None, allow_scraping=True):
             verify_ssl = bool(project.get_option('sentry:verify_ssl', False))
             token = project.get_option('sentry:token')
             if token:
-                token_header = project.get_option(
-                    'sentry:token_header',
-                    'X-Sentry-Token',
-                )
+                token_header = project.get_option('sentry:token_header') or 'X-Sentry-Token'
                 headers[token_header] = token
 
         with metrics.timer('sourcemaps.fetch'):
             result = http.fetch_file(url, headers=headers, verify_ssl=verify_ssl)
             z_body = zlib.compress(result.body)
             cache.set(cache_key, (url, result.headers, z_body, result.status, result.encoding), 60)
+
+    # If we did not get a 200 OK we just raise a cannot fetch here.
+    if result.status != 200:
+        raise http.CannotFetch(
+            {
+                'type': EventError.FETCH_INVALID_HTTP_CODE,
+                'value': result.status,
+                'url': http.expose_url(url),
+            }
+        )
 
     # Make sure the file we're getting back is six.binary_type. The only
     # reason it'd not be binary would be from old cached blobs, so
@@ -498,7 +505,7 @@ class JavaScriptStacktraceProcessor(StacktraceProcessor):
 
     def handles_frame(self, frame, stacktrace_info):
         platform = frame.get('platform') or self.data.get('platform')
-        return (settings.SENTRY_SCRAPE_JAVASCRIPT_CONTEXT and platform == 'javascript')
+        return (settings.SENTRY_SCRAPE_JAVASCRIPT_CONTEXT and platform in ('javascript', 'node'))
 
     def preprocess_frame(self, processable_frame):
         # Stores the resolved token.  This is used to cross refer to other
@@ -518,6 +525,13 @@ class JavaScriptStacktraceProcessor(StacktraceProcessor):
 
         # can't fetch source if there's no filename present or no line
         if not frame.get('abs_path') or not frame.get('lineno'):
+            return
+
+        # can't fetch if this is internal node module as well
+        # therefore we only process user-land frames (starting with /)
+        # or those created by bundle/webpack internals
+        if self.data.get('platform') == 'node' and \
+                not frame.get('abs_path').startswith(('/', 'app:', 'webpack:')):
             return
 
         errors = cache.get_errors(frame['abs_path'])
@@ -591,7 +605,7 @@ class JavaScriptStacktraceProcessor(StacktraceProcessor):
                 )
                 source = self.get_sourceview(abs_path)
 
-            if not source:
+            if source is None:
                 errors = cache.get_errors(abs_path)
                 if errors:
                     all_errors.extend(errors)
@@ -642,9 +656,14 @@ class JavaScriptStacktraceProcessor(StacktraceProcessor):
                     else:
                         filename = filename.split('webpack:///', 1)[-1]
 
-                    # As noted above, '~/' means they're coming from node_modules,
-                    # so these are not app dependencies
-                    if filename.startswith('~/'):
+                    # As noted above:
+                    # * [js/node] '~/' means they're coming from node_modules, so these are not app dependencies
+                    # * [node] sames goes for `./node_modules/`, which is used when bundling node apps
+                    # * [node] and webpack, which includes it's own code to bootstrap all modules and its internals
+                    #   eg. webpack:///webpack/bootstrap, webpack:///external
+                    if filename.startswith('~/') or \
+                            filename.startswith('./node_modules/') or \
+                            not filename.startswith('./'):
                         in_app = False
                     # And conversely, local dependencies start with './'
                     elif filename.startswith('./'):
@@ -654,7 +673,7 @@ class JavaScriptStacktraceProcessor(StacktraceProcessor):
                     new_frame['module'] = generate_module(filename)
 
                 if abs_path.startswith('app:'):
-                    if NODE_MODULES_RE.search(filename):
+                    if filename and NODE_MODULES_RE.search(filename):
                         in_app = False
                     else:
                         in_app = True
@@ -793,6 +812,10 @@ class JavaScriptStacktraceProcessor(StacktraceProcessor):
             # where there is no page. This just bails early instead of exposing
             # a fetch error that may be confusing.
             if f['abs_path'] == '<anonymous>':
+                continue
+            # we cannot fetch any other files than those uploaded by user
+            if self.data.get('platform') == 'node' and \
+                    not f.get('abs_path').startswith('app:'):
                 continue
             pending_file_list.add(f['abs_path'])
 

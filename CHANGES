@@ -1,11 +1,18 @@
 Version 8.23 (Unreleased)
 -------------------------
+- Experiemental implementation of slack actions via a new Integrations and Identity API.
 
 Schema Changes
 ~~~~~~~~~~~~~~
 
 - Drop index on ``EventTag(project_id, key_id, value_id)``
 - Increased length of ``Release.ref`` and ``Release.version`` to 250
+
+API Changes
+~~~~~~~~~~~
+- Project plugins endpoint returns every configurable plugin, and includes additional information about each one
+- Added user "appearances" endpoint to list and modify appearance options.
+- Add endpoint to list a project's teams
 
 Version 8.22
 ------------

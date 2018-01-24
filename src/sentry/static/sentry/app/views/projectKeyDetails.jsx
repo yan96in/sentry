@@ -1,20 +1,11 @@
+import {browserHistory} from 'react-router';
+import {isEqual} from 'lodash';
+import DocumentTitle from 'react-document-title';
 import PropTypes from 'prop-types';
 import React from 'react';
-import DocumentTitle from 'react-document-title';
-import {isEqual} from 'lodash';
-import {browserHistory} from 'react-router';
+import createReactClass from 'create-react-class';
 import idx from 'idx';
 
-import ApiMixin from '../mixins/apiMixin';
-import AutoSelectText from '../components/autoSelectText';
-import DateTime from '../components/dateTime';
-import FlowLayout from '../components/flowLayout';
-import HookStore from '../stores/hookStore';
-import IndicatorStore from '../stores/indicatorStore';
-import LoadingError from '../components/loadingError';
-import LoadingIndicator from '../components/loadingIndicator';
-import ProjectState from '../mixins/projectState';
-import StackedBarChart from '../components/stackedBarChart';
 import {
   BooleanField,
   FormState,
@@ -23,6 +14,17 @@ import {
   TextField,
 } from '../components/forms';
 import {t, tct} from '../locale';
+import ApiMixin from '../mixins/apiMixin';
+import AutoSelectText from '../components/autoSelectText';
+import DateTime from '../components/dateTime';
+import DynamicWrapper from '../components/dynamicWrapper';
+import FlowLayout from '../components/flowLayout';
+import HookStore from '../stores/hookStore';
+import IndicatorStore from '../stores/indicatorStore';
+import LoadingError from '../components/loadingError';
+import LoadingIndicator from '../components/loadingIndicator';
+import ProjectState from '../mixins/projectState';
+import StackedBarChart from '../components/stackedBarChart';
 
 // Exporting this only so we can quickly and simply unit test it
 // Not moving this to utils because this is tightly coupled to the UI
@@ -32,7 +34,8 @@ export const getRateLimitError = (obj, key) => {
   return !!obj.rateLimit.find(errorObj => errorObj[key] && errorObj[key].length);
 };
 
-const KeyStats = React.createClass({
+const KeyStats = createReactClass({
+  displayName: 'KeyStats',
   mixins: [ApiMixin],
 
   getInitialState() {
@@ -141,7 +144,9 @@ const KeyStats = React.createClass({
   },
 });
 
-const KeySettings = React.createClass({
+const KeySettings = createReactClass({
+  displayName: 'KeySettings',
+
   propTypes: {
     organization: PropTypes.object.isRequired,
     project: PropTypes.object.isRequired,
@@ -413,14 +418,20 @@ const KeySettings = React.createClass({
             <div className="form-group">
               <label>{t('DSN')}</label>
               <AutoSelectText className="form-control disabled">
-                {data.dsn.secret}
+                <DynamicWrapper
+                  value={data.dsn.secret}
+                  fixed={data.dsn.secret.replace(data.projectId, '<<projectId>>')}
+                />
               </AutoSelectText>
             </div>
 
             <div className="form-group">
               <label>{t('DSN (Public)')}</label>
               <AutoSelectText className="form-control disabled">
-                {data.dsn.public}
+                <DynamicWrapper
+                  value={data.dsn.public}
+                  fixed={data.dsn.public.replace(data.projectId, '<<projectId>>')}
+                />
               </AutoSelectText>
               <div className="help-block">
                 {tct('Use your public DSN with browser-based SDKs such as [raven-js].', {
@@ -433,7 +444,10 @@ const KeySettings = React.createClass({
             <div className="form-group">
               <label>{t('CSP Endpoint')}</label>
               <AutoSelectText className="form-control disabled">
-                {data.dsn.csp}
+                <DynamicWrapper
+                  value={data.dsn.csp}
+                  fixed={data.dsn.csp.replace(data.projectId, '<<projectId>>')}
+                />
               </AutoSelectText>
               <div className="help-block">
                 {tct(
@@ -481,7 +495,7 @@ const KeySettings = React.createClass({
               <label>{t('Project ID')}</label>
               <div className="controls">
                 <AutoSelectText className="form-control disabled">
-                  {data.projectId}
+                  <DynamicWrapper value={data.projectId} fixed="<<projectId>>" />
                 </AutoSelectText>
               </div>
             </div>
@@ -513,7 +527,8 @@ const KeySettings = React.createClass({
   },
 });
 
-export default React.createClass({
+export default createReactClass({
+  displayName: 'projectKeyDetails',
   mixins: [ApiMixin, ProjectState],
 
   getInitialState() {
@@ -549,7 +564,7 @@ export default React.createClass({
 
   handleRemove(data) {
     let {orgId, projectId} = this.props.params;
-    browserHistory.pushState(null, `/${orgId}/${projectId}/settings/keys/`);
+    browserHistory.push(`/${orgId}/${projectId}/settings/keys/`);
   },
 
   handleSave(data) {

@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types';
 import React from 'react';
+import createReactClass from 'create-react-class';
 import Reflux from 'reflux';
 import classNames from 'classnames';
 
@@ -17,7 +18,9 @@ import MemberListStore from '../stores/memberListStore';
 import MenuItem from './menuItem';
 import TooltipMixin from '../mixins/tooltip';
 
-const AssigneeSelector = React.createClass({
+const AssigneeSelector = createReactClass({
+  displayName: 'AssigneeSelector',
+
   propTypes: {
     id: PropTypes.string.isRequired,
   },
@@ -243,6 +246,7 @@ const AssigneeSelector = React.createClass({
               onOpen={this.onDropdownOpen}
               onClose={this.onDropdownClose}
               isOpen={this.state.isOpen}
+              alwaysRenderMenu={false}
               title={
                 assignedTo ? (
                   <Avatar user={assignedTo} className="avatar" size={48} />
@@ -274,7 +278,11 @@ const AssigneeSelector = React.createClass({
                     <span className="icon-circle-cross" /> {t('Clear Assignee')}
                   </MenuItem>
                 )}
-              {!memberListLoading && memberNodes}
+              {!memberListLoading && (
+                <li>
+                  <ul>{memberNodes}</ul>
+                </li>
+              )}
 
               {memberListLoading && (
                 <li>

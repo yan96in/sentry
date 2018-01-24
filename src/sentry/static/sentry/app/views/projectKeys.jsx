@@ -1,21 +1,28 @@
+import {Link} from 'react-router';
+import DocumentTitle from 'react-document-title';
 import PropTypes from 'prop-types';
 import React from 'react';
-import DocumentTitle from 'react-document-title';
-import {Link} from 'react-router';
+import createReactClass from 'create-react-class';
 
+import {t, tct} from '../locale';
 import ApiMixin from '../mixins/apiMixin';
 import AutoSelectText from '../components/autoSelectText';
+import Button from '../components/buttons/button';
 import ClippedBox from '../components/clippedBox';
 import Confirm from '../components/confirm';
+import DynamicWrapper from '../components/dynamicWrapper';
 import IndicatorStore from '../stores/indicatorStore';
 import LoadingError from '../components/loadingError';
 import LoadingIndicator from '../components/loadingIndicator';
-import {t, tct} from '../locale';
 import OrganizationState from '../mixins/organizationState';
-import ProjectState from '../mixins/projectState';
 import Pagination from '../components/pagination';
+import ProjectState from '../mixins/projectState';
+import SettingsPageHeader from './settings/components/settingsPageHeader';
+import TextBlock from './settings/components/text/textBlock';
 
-const KeyRow = React.createClass({
+const KeyRow = createReactClass({
+  displayName: 'KeyRow',
+
   propTypes: {
     orgId: PropTypes.string.isRequired,
     projectId: PropTypes.string.isRequired,
@@ -156,14 +163,26 @@ const KeyRow = React.createClass({
           <div className="form-group">
             <label>{t('DSN')}</label>
             <AutoSelectText className="form-control disabled">
-              {data.dsn.secret}
+              <DynamicWrapper
+                value={data.dsn.secret}
+                fixed={data.dsn.secret.replace(
+                  new RegExp(`\/${data.projectId}$`),
+                  '/<<projectId>>'
+                )}
+              />
             </AutoSelectText>
           </div>
 
           <div className="form-group">
             <label>{t('DSN (Public)')}</label>
             <AutoSelectText className="form-control disabled">
-              {data.dsn.public}
+              <DynamicWrapper
+                value={data.dsn.public}
+                fixed={data.dsn.public.replace(
+                  new RegExp(`\/${data.projectId}$`),
+                  '/<<projectId>>'
+                )}
+              />
             </AutoSelectText>
             <div className="help-block">
               {tct('Use your public DSN with browser-based SDKs such as [raven-js].', {
@@ -208,7 +227,8 @@ const KeyRow = React.createClass({
   },
 });
 
-export default React.createClass({
+export default createReactClass({
+  displayName: 'projectKeys',
   mixins: [ApiMixin, OrganizationState],
 
   getInitialState() {
@@ -341,19 +361,28 @@ export default React.createClass({
     return (
       <DocumentTitle title={t('Client Keys')}>
         <div className="ref-keys">
-          {access.has('project:write') && (
-            <a onClick={this.onCreateKey} className="btn pull-right btn-primary btn-sm">
-              <span className="icon-plus" />&nbsp;{t('Generate New Key')}
-            </a>
-          )}
-          <h2>{t('Client Keys')}</h2>
-          <p>
-            To send data to Sentry you will need to configure an SDK with a client key
-            (usually referred to as the <code>SENTRY_DSN</code> value). For more
-            information on integrating Sentry with your application take a look at our{' '}
-            <a href="https://docs.sentry.io/">documentation</a>
-            .
-          </p>
+          <SettingsPageHeader
+            title={t('Client Keys')}
+            action={
+              access.has('project:write') ? (
+                <Button onClick={this.onCreateKey} size="small" priority="primary">
+                  <span className="icon-plus" />&nbsp;{t('Generate New Key')}
+                </Button>
+              ) : null
+            }
+          />
+          <TextBlock>
+            {tct(
+              `To send data to Sentry you will need to configure an SDK with a client key
+            (usually referred to as the [code:SENTRY_DSN] value). For more
+            information on integrating Sentry with your application take a look at our
+            [link:documentation].`,
+              {
+                link: <a href="https://docs.sentry.io/" />,
+                code: <code />,
+              }
+            )}
+          </TextBlock>
           {this.renderBody()}
         </div>
       </DocumentTitle>

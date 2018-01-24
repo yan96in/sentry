@@ -36,15 +36,14 @@ class EventCompatibilityProxy(object):
 class RuleProcessor(object):
     logger = logging.getLogger('sentry.rules')
 
-    def __init__(self, event, is_new, is_regression, is_sample):
+    def __init__(self, event, is_new, is_regression, is_new_group_environment):
         self.event = EventCompatibilityProxy(event)
         self.group = event.group
         self.project = event.project
 
         self.is_new = is_new
         self.is_regression = is_regression
-        # TODO(dcramer): lets remove is_sample
-        self.is_sample = is_sample
+        self.is_new_group_environment = is_new_group_environment
 
         self.futures_by_cb = defaultdict(list)
 
@@ -75,7 +74,7 @@ class RuleProcessor(object):
         return EventState(
             is_new=self.is_new,
             is_regression=self.is_regression,
-            is_sample=self.is_sample,
+            is_new_group_environment=self.is_new_group_environment,
         )
 
     def apply_rule(self, rule):

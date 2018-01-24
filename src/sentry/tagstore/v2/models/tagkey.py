@@ -26,9 +26,9 @@ class TagKey(Model):
     __core__ = False
 
     project_id = BoundedPositiveIntegerField(db_index=True)
-    environment_id = BoundedPositiveIntegerField()
+    environment_id = BoundedPositiveIntegerField(null=True)
     key = models.CharField(max_length=MAX_TAG_KEY_LENGTH)
-    # values_seen will live in Redis
+    values_seen = BoundedPositiveIntegerField(default=0)
     status = BoundedPositiveIntegerField(
         choices=(
             (TagKeyStatus.VISIBLE, _('Visible')),
@@ -41,7 +41,6 @@ class TagKey(Model):
     class Meta:
         app_label = 'tagstore'
         unique_together = (('project_id', 'environment_id', 'key'), )
-        # TODO: environment index(es)
 
     __repr__ = sane_repr('project_id', 'environment_id', 'key')
 

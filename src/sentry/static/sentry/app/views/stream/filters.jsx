@@ -6,8 +6,8 @@ import SearchBar from './searchBar';
 import SortOptions from './sortOptions';
 import {t} from '../../locale';
 
-const StreamFilters = React.createClass({
-  propTypes: {
+class StreamFilters extends React.Component {
+  static propTypes = {
     orgId: PropTypes.string.isRequired,
     projectId: PropTypes.string.isRequired,
     access: PropTypes.object.isRequired,
@@ -16,9 +16,7 @@ const StreamFilters = React.createClass({
     searchId: PropTypes.string,
     savedSearchList: PropTypes.array.isRequired,
 
-    defaultQuery: PropTypes.string,
     sort: PropTypes.string,
-    filter: PropTypes.string,
     query: PropTypes.string,
     isSearchDisabled: PropTypes.bool,
     queryCount: PropTypes.number,
@@ -28,23 +26,19 @@ const StreamFilters = React.createClass({
     onSearch: PropTypes.func,
     onSidebarToggle: PropTypes.func,
     onSavedSearchCreate: PropTypes.func.isRequired,
-  },
+  };
 
-  contextTypes: {
+  static contextTypes = {
     location: PropTypes.object,
-  },
+  };
 
-  getDefaultProps() {
-    return {
-      defaultQuery: '',
-      sort: '',
-      filter: '',
-      query: null,
-      onSortChange: function() {},
-      onSearch: function() {},
-      onSidebarToggle: function() {},
-    };
-  },
+  static defaultProps = {
+    sort: '',
+    query: null,
+    onSortChange: function() {},
+    onSearch: function() {},
+    onSidebarToggle: function() {},
+  };
 
   render() {
     let {
@@ -57,7 +51,6 @@ const StreamFilters = React.createClass({
       query,
       savedSearchList,
       tags,
-      defaultQuery,
       isSearchDisabled,
       sort,
 
@@ -94,7 +87,6 @@ const StreamFilters = React.createClass({
                 projectId={projectId}
                 ref="searchBar"
                 tags={tags}
-                defaultQuery={defaultQuery || ''}
                 placeholder={t('Search for events, users, tags, and everything else.')}
                 query={query || ''}
                 onSearch={onSearch}
@@ -111,7 +103,7 @@ const StreamFilters = React.createClass({
         </div>
       </div>
     );
-  },
-});
+  }
+}
 
 export default StreamFilters;

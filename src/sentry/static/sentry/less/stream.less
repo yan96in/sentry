@@ -45,7 +45,13 @@
 .group-header {
   // needs fixed height so that stream doesn't "pop" up
   // when stream actions turn "sticky"
-  min-height: 44px;
+  min-height: 0;
+  &.sticky {
+    top: 0;
+    position: fixed;
+    width: 100%;
+    width: 100%;
+  }
 }
 
 .stream-no-bulk-actions {
@@ -802,14 +808,14 @@
         color: @gray;
         margin-right: 10px;
       }
-    }
 
-    a {
-      color: @gray;
-      font-weight: bold;
+      a {
+        color: @gray;
+        font-weight: bold;
 
-      &:hover {
-        color: darken(@gray, 20);
+        &:hover {
+          color: darken(@gray, 20);
+        }
       }
     }
 
@@ -932,6 +938,16 @@
 
     &:last-child {
       border-bottom: 0;
+    }
+  }
+
+  .user-report {
+    .activity-container {
+      margin: 10px 0 5px;
+    }
+
+    .activity-note {
+      padding-bottom: 0;
     }
   }
 }

@@ -1,14 +1,19 @@
 import PropTypes from 'prop-types';
 import React from 'react';
-import OrganizationState from '../../mixins/organizationState';
+import createReactClass from 'create-react-class';
+
+import {t} from '../../locale';
 import ApiMixin from '../../mixins/apiMixin';
 import Badge from '../../components/badge';
 import ListLink from '../../components/listLink';
 import LoadingError from '../../components/loadingError';
 import LoadingIndicator from '../../components/loadingIndicator';
-import {t} from '../../locale';
+import OrganizationState from '../../mixins/organizationState';
+import PluginNavigation from './pluginNavigation';
 
-const ProjectSettings = React.createClass({
+const ProjectSettings = createReactClass({
+  displayName: 'ProjectSettings',
+
   propTypes: {
     setProjectNavSection: PropTypes.func,
   },
@@ -29,7 +34,9 @@ const ProjectSettings = React.createClass({
   },
 
   componentWillMount() {
-    this.props.setProjectNavSection('settings');
+    let {setProjectNavSection} = this.props;
+
+    setProjectNavSection('settings');
     this.fetchData();
   },
 
@@ -78,7 +85,6 @@ const ProjectSettings = React.createClass({
     let {orgId, projectId} = this.props.params;
     let settingsUrlRoot = `/${orgId}/${projectId}/settings`;
     let project = this.state.project;
-    let features = new Set(project.features);
     let rootInstallPath = `/${orgId}/${projectId}/settings/install/`;
     let path = this.props.location.pathname;
     let processingIssues = this.state.project.processingIssues;
@@ -88,26 +94,19 @@ const ProjectSettings = React.createClass({
         <div className="col-md-2">
           <h6 className="nav-header">{t('Configuration')}</h6>
           <ul className="nav nav-stacked">
-            <li>
-              <a href={`${settingsUrlRoot}/`}>{t('General')}</a>
-            </li>
+            <ListLink to={`/${orgId}/${projectId}/settings/`} index={true}>
+              {t('General')}
+            </ListLink>
             <ListLink
               to={`/${orgId}/${projectId}/settings/alerts/`}
               isActive={loc => path.indexOf(loc.pathname) === 0}
             >
               {t('Alerts')}
             </ListLink>
-            {features.has('quotas') && (
-              <li>
-                <a href={`${settingsUrlRoot}/quotas/`}>{t('Rate Limits')}</a>
-              </li>
-            )}
-            <li>
-              <a href={`${settingsUrlRoot}/tags/`}>{t('Tags')}</a>
-            </li>
-            <li>
-              <a href={`${settingsUrlRoot}/issue-tracking/`}>{t('Issue Tracking')}</a>
-            </li>
+            <ListLink to={`/${orgId}/${projectId}/settings/tags/`}>{t('Tags')}</ListLink>
+            <ListLink to={`/${orgId}/${projectId}/settings/issue-tracking/`}>
+              {t('Issue Tracking')}
+            </ListLink>
             {access.has('project:write') && (
               <ListLink
                 to={`/${orgId}/${projectId}/settings/release-tracking/`}
@@ -164,16 +163,10 @@ const ProjectSettings = React.createClass({
           </ul>
           <h6 className="nav-header">{t('Integrations')}</h6>
           <ul className="nav nav-stacked">
-            <li>
-              <a href={`${settingsUrlRoot}/plugins/`}>{t('All Integrations')}</a>
-            </li>
-            {project.plugins.filter(p => p.enabled).map(plugin => {
-              return (
-                <li key={plugin.id}>
-                  <a href={`${settingsUrlRoot}/plugins/${plugin.id}/`}>{plugin.name}</a>
-                </li>
-              );
-            })}
+            <ListLink to={`/${orgId}/${projectId}/settings/plugins/`}>
+              {t('All Integrations')}
+            </ListLink>
+            <PluginNavigation urlRoot={settingsUrlRoot} />
           </ul>
         </div>
         <div className="col-md-10">

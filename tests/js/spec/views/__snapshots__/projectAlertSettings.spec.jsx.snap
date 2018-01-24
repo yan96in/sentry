@@ -1,79 +1,76 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`ProjectAlertSettings render() renders 1`] = `
-<DocumentTitle
+<SideEffect(DocumentTitle)
   title="Project Alert Settings"
 >
   <div>
-    <SpreadLayout
-      center={true}
-      responsive={false}
-      style={
-        Object {
-          "marginBottom": 20,
-        }
+    <SettingsPageHeading
+      action={
+        <Button
+          className="pull-right"
+          disabled={false}
+          priority="primary"
+          size="small"
+          to="/org-slug/project-slug/settings/alerts/rules/new/"
+        >
+          <span
+            className="icon-plus"
+          />
+          New Alert Rule
+        </Button>
       }
-    >
-      <h2
-        style={
-          Object {
-            "margin": 0,
+      tabs={
+        <ul
+          className="nav nav-tabs"
+          style={
+            Object {
+              "borderBottom": "1px solid #ddd",
+            }
           }
-        }
-      >
-        Alerts
-      </h2>
-      <Button
-        className="pull-right"
-        disabled={false}
-        href="/org-slug/project-slug/settings/alerts/rules/new/"
-        priority="primary"
-        size="small"
-      >
-        <span
-          className="icon-plus"
-        />
-        New Alert Rule
-      </Button>
-    </SpreadLayout>
-    <ul
-      className="nav nav-tabs"
-      style={
-        Object {
-          "borderBottom": "1px solid #ddd",
-        }
+        >
+          <ListLink
+            activeClassName="active"
+            index={true}
+            to="/org-slug/project-slug/settings/alerts/"
+          >
+            Settings
+          </ListLink>
+          <ListLink
+            activeClassName="active"
+            index={false}
+            to="/org-slug/project-slug/settings/alerts/rules/"
+          >
+            Rules
+          </ListLink>
+        </ul>
       }
-    >
-      <ListLink
-        activeClassName="active"
-        index={true}
-        to="/org-slug/project-slug/settings/alerts/"
-      >
-        Settings
-      </ListLink>
-      <ListLink
-        activeClassName="active"
-        index={false}
-        to="/org-slug/project-slug/settings/alerts/rules/"
-      >
-        Rules
-      </ListLink>
-    </ul>
+      title="Alerts"
+    />
     <div
       className="alert alert-block alert-info"
     >
-      <span>
-        <span>
+      <span
+        key="5"
+      >
+        <span
+          key="0"
+        >
           These settings cover rule-based alerts. If you're looking to change which notifications you receive you may do so from your 
         </span>
         <a
           href="/account/settings/notifications/"
+          key="2"
         >
-          <span>
+          <span
+            key="1"
+          >
             account settings
           </span>
         </a>
-        <span>
+        <span
+          key="3"
+        >
           .
         </span>
       </span>
@@ -99,7 +96,7 @@ exports[`ProjectAlertSettings render() renders 1`] = `
       orgId="org-slug"
       projectId="project-slug"
     />
-    <pluginList
+    <PluginList
       onDisablePlugin={[Function]}
       onEnablePlugin={[Function]}
       organization={
@@ -120,6 +117,10 @@ exports[`ProjectAlertSettings render() renders 1`] = `
           "name": "Organization Name",
           "onboardingTasks": Array [],
           "slug": "org-slug",
+          "status": Object {
+            "id": "active",
+            "name": "active",
+          },
           "teams": Array [],
         }
       }
@@ -136,5 +137,5 @@ exports[`ProjectAlertSettings render() renders 1`] = `
       }
     />
   </div>
-</DocumentTitle>
+</SideEffect(DocumentTitle)>
 `;

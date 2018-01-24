@@ -503,28 +503,6 @@ table.integrations {
     padding-left: 78px !important;
   }
 
-  .icon-integration {
-    position: absolute;
-    top: 15px;
-    left: 16px;
-    .square(48px);
-    border-radius: 2px;
-    border: 0;
-    /* this is so that there aren't gray boxes before load */
-    background-color: #fff;
-    display: inline-block;
-  }
-
-  .auto-tag-browsers,
-  .auto-tag-device,
-  .auto-tag-interface-types,
-  .auto-tag-operating-systems,
-  .auto-tag-urls {
-    .icon-integration {
-      .icon-sentry;
-    }
-  }
-
   h5 {
     font-size: 16px;
     margin-bottom: 8px;
@@ -630,13 +608,6 @@ table.integrations {
 * ============================================================================
 */
 
-#avatar-settings {
-  input[type='file'] {
-    display: inline-block;
-    opacity: 0;
-  }
-}
-
 .image-cropper {
   text-align: center;
   background-image: url(../images/avatars/cropper-bg.gif);
@@ -695,6 +666,23 @@ table.integrations {
 .loading {
   margin: 6em auto;
   position: relative;
+
+  &.overlay {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+
+    &.dark {
+      background-color: rgba(0, 0, 0, 0.6);
+    }
+  }
 
   .loading-indicator {
     position: relative;
@@ -1376,31 +1364,21 @@ table.integrations {
   position: static;
 
   .dropdown-toggle {
-    border: 1px solid @gray-lighter;
-    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08);
-    border-radius: 50%;
-    height: 21px;
-    width: 21px;
+    height: 23px;
+    width: 23px;
     line-height: 21px;
-    // text-align: center;
     position: relative;
-    top: -1px;
 
-    margin-left: 10px;
+    margin-left: 2px;
     display: inline-block;
     vertical-align: middle;
-
-    &:hover {
-      background: @white-darker;
-      border-color: @gray-light;
-    }
 
     .icon-arrow-down {
       position: relative;
       left: 2px;
       font-size: 15px !important;
       color: @gray;
-      top: 1px;
+      top: -1px;
     }
   }
 
@@ -1517,14 +1495,6 @@ table.integrations {
           }
         }
       }
-    }
-  }
-
-  &.open .dropdown-toggle {
-    border-color: darken(@purple, 15);
-    background-color: @purple;
-    .icon-arrow-down {
-      color: #fff;
     }
   }
 }
@@ -1952,9 +1922,8 @@ ul.faces {
 
     ul {
       .list-unstyled();
-      max-height: 180px;
-      overflow: auto;
-      margin: 0;
+      max-height: 500px;
+      overflow-y: auto;
     }
 
     li {
@@ -3428,53 +3397,6 @@ ul.tag-list {
 }
 
 /**
-* Integration list
-* ============================================================================
-*/
-
-.integration-list {
-  .clearfix();
-  .list-unstyled();
-  margin-bottom: 18px;
-
-  li {
-    display: inline-block;
-    margin-bottom: 2px;
-
-    button {
-      width: 175px;
-      text-align: center;
-      font-size: 12px;
-      color: darken(#e4e8ed, 30%);
-      letter-spacing: 0.1px;
-      font-weight: 600;
-      text-transform: uppercase;
-      border: 1px solid #eee;
-      background: inherit;
-      border-radius: 4px;
-      padding: 10px;
-      display: block;
-      margin-right: 5px;
-
-      &:hover {
-        border-color: #ccc;
-      }
-      .icon-integration {
-        position: relative;
-        top: 4px;
-        right: 5px;
-        .square(20px);
-        border-radius: 2px;
-        border: 0;
-        /* this is so that there aren't gray boxes before load */
-        background-color: #fff;
-        display: inline-block;
-      }
-    }
-  }
-}
-
-/**
 * Client platform list
 * ============================================================================
 */
@@ -3753,35 +3675,6 @@ div.qrcode {
   &.expanded .full-value {
     z-index: 10;
     display: block;
-  }
-}
-
-/**
- * react-code-input
- * ============================================================================
- */
-.react-code-input {
-  text-align: center;
-  display: block !important;
-
-  input::-webkit-outer-spin-button,
-  input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-  }
-  input[type='number'] {
-    -moz-appearance: textfield;
-  }
-  input {
-    text-align: center !important;
-    padding: 0 !important;
-    color: transparent !important;
-    text-shadow: 0 0 0 black !important;
-    &::selection {
-      background: transparent;
-    }
-    &::-moz-selection {
-      background: transparent;
-    }
   }
 }
 

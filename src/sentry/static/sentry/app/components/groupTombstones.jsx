@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types';
 import React from 'react';
+import createReactClass from 'create-react-class';
 import _ from 'lodash';
 
 import Avatar from '../components/avatar';
@@ -13,7 +14,9 @@ import ApiMixin from '../mixins/apiMixin';
 
 import {t} from '../locale';
 
-const GroupTombstoneRow = React.createClass({
+const GroupTombstoneRow = createReactClass({
+  displayName: 'GroupTombstoneRow',
+
   propTypes: {
     data: PropTypes.object.isRequired,
     undiscard: PropTypes.func.isRequired,
@@ -71,7 +74,9 @@ const GroupTombstoneRow = React.createClass({
   },
 });
 
-const GroupTombstones = React.createClass({
+const GroupTombstones = createReactClass({
+  displayName: 'GroupTombstones',
+
   propTypes: {
     orgId: PropTypes.string.isRequired,
     projectId: PropTypes.string.isRequired,
@@ -95,18 +100,16 @@ const GroupTombstones = React.createClass({
         );
       },
       error: () => {
-        IndicatorStore.add(
-          t('We were unable to undiscard this group'),
-          'error',
-          {duration: 4000}
-        );
+        IndicatorStore.add(t('We were unable to undiscard this group'), 'error', {
+          duration: 4000,
+        });
       },
     });
     this.props.fetchData();
   },
 
   renderEmpty() {
-    return <div className="box empty">{t('None')}</div>;
+    return <div className="box empty">{t('You have no discarded issues')}</div>;
   },
 
   render() {
@@ -117,7 +120,6 @@ const GroupTombstones = React.createClass({
       <div>
         <div className="row" style={{paddingTop: 10}}>
           <div className="col-md-12 discarded-groups">
-            <h5>{t('Discarded Groups')}</h5>
             {tombstones.length ? (
               <ul className="group-list">
                 {tombstones.map(data => {

@@ -16,6 +16,7 @@ from django.conf import settings
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
+from uuid import uuid1
 
 from sentry.app import locks
 from sentry.constants import ObjectStatus
@@ -34,6 +35,10 @@ ProjectStatus = ObjectStatus
 class ProjectTeam(Model):
     __core__ = True
 
+    # TODO(jess): this unique index is temporary and should be
+    # removed when the UI is updated to handle multiple teams
+    # per project. This is just to prevent wonky behavior in
+    # the mean time.
     project = FlexibleForeignKey('sentry.Project')
     team = FlexibleForeignKey('sentry.Team')
 
@@ -65,13 +70,12 @@ class ProjectManager(BaseManager):
                 return []
 
         base_qs = self.filter(
-            team=team,
+            teams=team,
             status=ProjectStatus.VISIBLE,
         )
 
         project_list = []
         for project in base_qs:
-            project.team = team
             project_list.append(project)
 
         return sorted(project_list, key=lambda x: x.name.lower())
@@ -88,7 +92,8 @@ class Project(Model):
     name = models.CharField(max_length=200)
     forced_color = models.CharField(max_length=6, null=True, blank=True)
     organization = FlexibleForeignKey('sentry.Organization')
-    team = FlexibleForeignKey('sentry.Team')
+    # DEPRECATED. use teams instead.
+    team = FlexibleForeignKey('sentry.Team', null=True)
     teams = models.ManyToManyField(
         'sentry.Team', related_name='teams', through=ProjectTeam
     )
@@ -277,9 +282,10 @@ class Project(Model):
         return is_enabled
 
     def transfer_to(self, team):
-        from sentry.models import ReleaseProject
+        from sentry.models import ProjectTeam, ReleaseProject
 
         organization = team.organization
+        from_team_id = self.team_id
 
         # We only need to delete ReleaseProjects when moving to a different
         # Organization. Releases are bound to Organization, so it's not realistic
@@ -306,6 +312,8 @@ class Project(Model):
                 team=team,
             )
 
+        ProjectTeam.objects.filter(project=self, team_id=from_team_id).update(team=team)
+
     def add_team(self, team):
         try:
             with transaction.atomic():
@@ -314,3 +322,15 @@ class Project(Model):
             return False
         else:
             return True
+
+    def get_security_token(self):
+        lock = locks.get(self.get_lock_key(), duration=5)
+        with TimedRetryPolicy(10)(lock.acquire):
+            security_token = self.get_option('sentry:token', None)
+            if security_token is None:
+                security_token = uuid1().hex
+                self.update_option('sentry:token', security_token)
+            return security_token
+
+    def get_lock_key(self):
+        return 'project_token:%s' % self.id

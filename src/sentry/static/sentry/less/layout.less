@@ -18,6 +18,17 @@ body {
   background-image: linear-gradient(@header-bg-color, @header-bg-color);
   background-size: @sidebar-width;
   background-repeat: repeat-y;
+
+  &.new-settings {
+    overflow-y: scroll;
+    background-image: none;
+    background-color: #fcfcfc;
+    padding: 0 0 40px;
+
+    .messages-container {
+      margin: 0;
+    }
+  }
 }
 
 /**
@@ -150,6 +161,43 @@ body.auth {
     }
   }
 
+  .project-header {
+    display: flex;
+    &-main {
+      flex-grow: 1;
+    }
+    &-toggle {
+      text-align: right;
+      label {
+        color: @gray-lighter;
+        font-size: 14px;
+        font-weight: normal;
+        display: block;
+        margin-top: 8px;
+      }
+    }
+  }
+
+  .project-select-wrapper {
+    display: flex;
+    align-items: center;
+  }
+
+  .project-select-bookmark {
+    border-left: 1px solid @gray-lightest;
+    padding-left: 10px;
+    margin-left: 10px;
+    color: @40;
+    &.active {
+      color: @yellow-orange;
+    }
+  }
+
+  .environment-selector-toggle {
+    color: @gray-darkest;
+    font-weight: 600;
+  }
+
   .project-select {
     position: relative;
 
@@ -202,7 +250,7 @@ body.auth {
     }
   }
 
-  .project-select + .nav-tabs,
+  .project-select-wrapper + .nav-tabs,
   #blk_projectselect + .nav-tabs {
     margin-top: 10px;
   }
@@ -265,46 +313,6 @@ footer {
     width: 32px;
     margin: 0 auto;
     display: block;
-  }
-}
-
-/**
-* Project action menu
-* ============================================================================
-*/
-
-.project-actions {
-  .btn-sm {
-    font-size: 13px;
-    margin-left: 7px;
-    line-height: 21px;
-    padding: 4px 9px;
-  }
-
-  .icon {
-    font-size: 14px;
-    padding-right: 5px;
-    color: @40;
-    position: relative;
-
-    &.icon-star-solid {
-      top: 0;
-      margin: 0;
-    }
-
-    &.icon-signal {
-      font-size: 18px;
-      top: 1px;
-    }
-
-    &.icon-settings {
-      top: 2px;
-      font-size: 15px;
-    }
-
-    &.active {
-      color: @yellow-orange;
-    }
   }
 }
 

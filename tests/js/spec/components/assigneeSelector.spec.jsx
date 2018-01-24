@@ -11,6 +11,10 @@ import ConfigStore from 'app/stores/configStore';
 import stubReactComponents from '../../helpers/stubReactComponent';
 
 describe('AssigneeSelector', function() {
+  let sandbox;
+  let assigneeSelector;
+  let assignTo;
+
   const USER_1 = {
     id: 1,
     name: 'Jane Doe',
@@ -28,18 +32,18 @@ describe('AssigneeSelector', function() {
   };
 
   beforeEach(function() {
-    this.sandbox = sinon.sandbox.create();
-    stubReactComponents(this.sandbox, [LoadingIndicator]);
+    sandbox = sinon.sandbox.create();
+    stubReactComponents(sandbox, [LoadingIndicator]);
 
-    this.sandbox.stub(MemberListStore, 'getAll').returns([USER_1, USER_2]);
-    this.sandbox.stub(GroupStore, 'get').returns({
+    sandbox.stub(MemberListStore, 'getAll').returns([USER_1, USER_2]);
+    sandbox.stub(GroupStore, 'get').returns({
       id: 1337,
       assignedTo: null,
     });
   });
 
   afterEach(function() {
-    this.sandbox.restore();
+    sandbox.restore();
   });
 
   describe('statics', function() {
@@ -72,7 +76,7 @@ describe('AssigneeSelector', function() {
 
     describe('putSessionUserFirst()', function() {
       it('should place the session user at the top of the member list if present', function() {
-        this.sandbox
+        sandbox
           .stub(ConfigStore, 'get')
           .withArgs('user')
           .returns({
@@ -84,7 +88,7 @@ describe('AssigneeSelector', function() {
       });
 
       it("should return the same member list if the session user isn't present", function() {
-        this.sandbox
+        sandbox
           .stub(ConfigStore, 'get')
           .withArgs('user')
           .returns({
@@ -99,14 +103,13 @@ describe('AssigneeSelector', function() {
   });
 
   describe('loading', function() {
-    let assigneeSelector;
     let openMenu;
 
     beforeEach(function() {
       // Reset sandbox because we don't want <LoadingIndicator /> stubbed
-      this.sandbox.restore();
-      this.sandbox = sinon.sandbox.create();
-      this.sandbox.stub(GroupStore, 'get').returns({
+      sandbox.restore();
+      sandbox = sinon.sandbox.create();
+      sandbox.stub(GroupStore, 'get').returns({
         id: 1337,
         assignedTo: null,
       });
@@ -124,6 +127,7 @@ describe('AssigneeSelector', function() {
     it('does not have loading state and shows member list after calling MemberListStore.loadInitialData', function() {
       openMenu();
       MemberListStore.loadInitialData([USER_1, USER_2]);
+      assigneeSelector.update();
 
       expect(assigneeSelector.find('Avatar').length).toBe(2);
       expect(assigneeSelector.find('LoadingIndicator').exists()).toBe(false);
@@ -132,11 +136,13 @@ describe('AssigneeSelector', function() {
     it('does NOT update member list after initial load', function() {
       openMenu();
       MemberListStore.loadInitialData([USER_1, USER_2]);
+      assigneeSelector.update();
 
       expect(assigneeSelector.find('Avatar').length).toBe(2);
       expect(assigneeSelector.find('LoadingIndicator').exists()).toBe(false);
 
       MemberListStore.loadInitialData([USER_1, USER_2, USER_3]);
+      assigneeSelector.update();
 
       expect(assigneeSelector.find('Avatar').length).toBe(2);
       expect(assigneeSelector.find('LoadingIndicator').exists()).toBe(false);
@@ -144,20 +150,16 @@ describe('AssigneeSelector', function() {
   });
 
   describe('onFilterKeyDown()', function() {
-    let assigneeSelector;
-    let assignTo;
-
     beforeEach(function() {
       MemberListStore.loaded = true;
       if (assigneeSelector) {
         assigneeSelector.unmount();
       }
-
       assigneeSelector = mount(<AssigneeSelector id="1337" />);
       // open menu
       assigneeSelector.find('a').simulate('click');
 
-      assignTo = this.sandbox.stub(assigneeSelector.instance(), 'assignTo');
+      assignTo = sandbox.stub(assigneeSelector.instance(), 'assignTo');
     });
 
     afterEach(function() {
@@ -193,7 +195,6 @@ describe('AssigneeSelector', function() {
   });
 
   describe('onFilterKeyUp()', function() {
-    let assigneeSelector;
     beforeEach(function() {
       MemberListStore.loaded = true;
       if (assigneeSelector) {
@@ -226,15 +227,15 @@ describe('AssigneeSelector', function() {
 
   describe('componentDidUpdate()', function() {
     beforeEach(function() {
-      this.assigneeSelector = mount(<AssigneeSelector id="1337" />);
+      assigneeSelector = mount(<AssigneeSelector id="1337" />);
     });
 
     it('should destroy old assignee tooltip and create a new assignee tooltip', function() {
-      let instance = this.assigneeSelector.instance();
-      this.sandbox.spy(instance, 'attachTooltips');
-      this.sandbox.spy(instance, 'removeTooltips');
+      let instance = assigneeSelector.instance();
+      sandbox.spy(instance, 'attachTooltips');
+      sandbox.spy(instance, 'removeTooltips');
 
-      this.assigneeSelector.setState({assignedTo: USER_1});
+      assigneeSelector.setState({assignedTo: USER_1});
 
       expect(instance.attachTooltips.calledOnce).toBeTruthy();
       expect(instance.removeTooltips.calledOnce).toBeTruthy();

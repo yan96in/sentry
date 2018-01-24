@@ -2,7 +2,10 @@ import Reflux from 'reflux';
 import _ from 'lodash';
 
 let validHookNames = new Set([
+  'component:org-members-view',
   'footer',
+  'settings:organization-navigation',
+  'settings:organization-navigation-config',
   'organization:header',
   'organization:sidebar',
   'organization:dashboard:secondary-column',
@@ -12,6 +15,7 @@ let validHookNames = new Set([
   'project:data-forwarding:disabled',
   'project:rate-limits:disabled',
   'project:custom-inbound-filters:disabled',
+  'project:discard-groups:disabled',
   'issue:secondary-column',
   'analytics:onboarding-complete',
 ]);
@@ -50,3 +54,4 @@ const HookStore = Reflux.createStore({
 });
 
 export default HookStore;
+window.hook = HookStore;

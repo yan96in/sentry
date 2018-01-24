@@ -15,7 +15,7 @@ class ProjectAlertSettingsTest(AcceptanceTestCase):
         self.team = self.create_team(organization=self.org, name='Mariachi Band')
         self.project = self.create_project(
             organization=self.org,
-            team=self.team,
+            teams=[self.team],
             name='Bengal',
         )
         self.create_member(
@@ -53,6 +53,7 @@ class ProjectAlertSettingsTest(AcceptanceTestCase):
         self.browser.click('.ref-plugin-enable-webhooks')
         self.browser.wait_until('.ref-plugin-config-webhooks')
         self.browser.wait_until_not('.loading-indicator')
+        self.browser.wait_until_not('.indicators-container .toast')
         self.browser.snapshot('project alert settings webhooks enabled')
 
     def test_rules_load(self):

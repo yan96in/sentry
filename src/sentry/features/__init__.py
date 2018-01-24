@@ -18,6 +18,7 @@ default_manager.add('organizations:group-unmerge', OrganizationFeature)  # NOQA
 default_manager.add('organizations:invite-members', OrganizationFeature)  # NOQA
 default_manager.add('organizations:new-settings', OrganizationFeature)  # NOQA
 default_manager.add('organizations:integrations-v3', OrganizationFeature)  # NOQA
+default_manager.add('organizations:require-2fa', OrganizationFeature)  # NOQA
 default_manager.add('projects:similarity-view', ProjectFeature)  # NOQA
 default_manager.add('projects:global-events', ProjectFeature)  # NOQA
 default_manager.add('projects:plugins', ProjectPluginFeature)  # NOQA
@@ -25,10 +26,12 @@ default_manager.add('projects:data-forwarding', ProjectFeature)  # NOQA
 default_manager.add('projects:rate-limits', ProjectFeature)  # NOQA
 default_manager.add('workflow:release-emails', ProjectFeature)  # NOQA
 default_manager.add('projects:sample-events', ProjectFeature)  # NOQA
+default_manager.add('projects:servicehooks', ProjectFeature)  # NOQA
 default_manager.add('projects:similarity-indexing', ProjectFeature)  # NOQA
-default_manager.add('projects:custom-filters', ProjectFeature)  # NOQA
+default_manager.add('projects:discard-groups', ProjectFeature)  # NOQA
 default_manager.add('projects:custom-inbound-filters', ProjectFeature)  # NOQA
 default_manager.add('projects:minidump', ProjectFeature)  # NOQA
+default_manager.add('organizations:environments', OrganizationFeature)  # NOQA
 
 # expose public api
 add = default_manager.add

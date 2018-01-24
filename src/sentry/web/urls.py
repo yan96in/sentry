@@ -38,22 +38,9 @@ from sentry.web.frontend.oauth_token import OAuthTokenView
 from sentry.auth.providers.saml2 import SAML2AcceptACSView, SAML2SLSView, SAML2MetadataView
 from sentry.web.frontend.organization_auth_settings import \
     OrganizationAuthSettingsView
-from sentry.web.frontend.organization_member_settings import \
-    OrganizationMemberSettingsView
 from sentry.web.frontend.organization_integration_setup import \
     OrganizationIntegrationSetupView
 from sentry.web.frontend.out import OutView
-from sentry.web.frontend.organization_members import OrganizationMembersView
-from sentry.web.frontend.project_issue_tracking import ProjectIssueTrackingView
-from sentry.web.frontend.project_plugin_configure import \
-    ProjectPluginConfigureView
-from sentry.web.frontend.project_plugin_disable import ProjectPluginDisableView
-from sentry.web.frontend.project_plugin_enable import ProjectPluginEnableView
-from sentry.web.frontend.project_plugin_reset import ProjectPluginResetView
-from sentry.web.frontend.project_plugins import ProjectPluginsView
-from sentry.web.frontend.project_rule_edit import ProjectRuleEditView
-from sentry.web.frontend.project_settings import ProjectSettingsView
-from sentry.web.frontend.project_tags import ProjectTagsView
 from sentry.web.frontend.react_page import GenericReactPageView, ReactPageView
 from sentry.web.frontend.reactivate_account import ReactivateAccountView
 from sentry.web.frontend.release_webhook import ReleaseWebhookView
@@ -62,6 +49,7 @@ from sentry.web.frontend.remove_organization import RemoveOrganizationView
 from sentry.web.frontend.restore_organization import RestoreOrganizationView
 from sentry.web.frontend.remove_project import RemoveProjectView
 from sentry.web.frontend.transfer_project import TransferProjectView
+from sentry.web.frontend.account_identity import AccountIdentityAssociateView, AccountIdentityLinkView
 from sentry.web.frontend.accept_project_transfer import AcceptProjectTransferView
 from sentry.web.frontend.remove_team import RemoveTeamView
 from sentry.web.frontend.sudo import SudoView
@@ -114,8 +102,13 @@ urlpatterns += patterns(
         name='sentry-api-minidump'
     ),
     url(
+        r'^api/(?P<project_id>\d+)/security/$',
+        api.SecurityReportView.as_view(),
+        name='sentry-api-security-report'
+    ),
+    url(  # This URL to be deprecated
         r'^api/(?P<project_id>\d+)/csp-report/$',
-        api.CspReportView.as_view(),
+        api.SecurityReportView.as_view(),
         name='sentry-api-csp-report'
     ),
     url(
@@ -123,6 +116,7 @@ urlpatterns += patterns(
         api.crossdomain_xml,
         name='sentry-api-crossdomain-xml'
     ),
+    url(r'^api/store/schema$', api.StoreSchemaView.as_view(), name='sentry-api-store-schema'),
 
     # The static version is either a 10 digit timestamp, a sha1, or md5 hash
     url(
@@ -255,6 +249,16 @@ urlpatterns += patterns(
         name='sentry-account-disconnect-identity'
     ),
     url(
+        r'^account/settings/identities/associate/(?P<organization_slug>[^\/]+)/(?P<provider_key>[^\/]+)/$',
+        AccountIdentityAssociateView.as_view(),
+        name='sentry-account-associate-identity'
+    ),
+    url(
+        r'^account/settings/identities/associate/$',
+        AccountIdentityLinkView.as_view(),
+        name='sentry-account-link-identity'
+    ),
+    url(
         r'^account/settings/notifications/$',
         AccountNotificationView.as_view(),
         name='sentry-account-settings-notifications'
@@ -344,6 +348,9 @@ urlpatterns += patterns(
     url(r'^accept-transfer/$', AcceptProjectTransferView.as_view(),
         name='sentry-accept-project-transfer'),
 
+    url(r'^settings/$', react_page_view),
+    url(r'^settings/account/$', react_page_view),
+
     # Organizations
     url(r'^(?P<organization_slug>[\w_-]+)/$',
         react_page_view, name='sentry-organization-home'),
@@ -369,7 +376,7 @@ urlpatterns += patterns(
     ),
     url(
         r'^organizations/(?P<organization_slug>[\w_-]+)/members/$',
-        OrganizationMembersView.as_view(),
+        react_page_view,
         name='sentry-organization-members'
     ),
     url(
@@ -379,7 +386,7 @@ urlpatterns += patterns(
     ),
     url(
         r'^organizations/(?P<organization_slug>[\w_-]+)/members/(?P<member_id>\d+)/$',
-        OrganizationMemberSettingsView.as_view(),
+        react_page_view,
         name='sentry-organization-member-settings'
     ),
     url(
@@ -417,38 +424,8 @@ urlpatterns += patterns(
     # Settings - Projects
     url(
         r'^(?P<organization_slug>[\w_-]+)/(?P<project_slug>[\w_-]+)/settings/$',
-        ProjectSettingsView.as_view(),
+        react_page_view,
         name='sentry-manage-project'
-    ),
-    url(
-        r'^(?P<organization_slug>[\w_-]+)/(?P<project_slug>[\w_-]+)/settings/issue-tracking/$',
-        ProjectIssueTrackingView.as_view(),
-        name='sentry-project-issue-tracking'
-    ),
-    url(
-        r'^(?P<organization_slug>[\w_-]+)/(?P<project_slug>[\w_-]+)/settings/plugins/$',
-        ProjectPluginsView.as_view(),
-        name='sentry-manage-project-plugins'
-    ),
-    url(
-        r'^(?P<organization_slug>[\w_-]+)/(?P<project_slug>[\w_-]+)/settings/plugins/(?P<slug>[\w_-]+)/$',
-        ProjectPluginConfigureView.as_view(),
-        name='sentry-configure-project-plugin'
-    ),
-    url(
-        r'^(?P<organization_slug>[\w_-]+)/(?P<project_slug>[\w_-]+)/settings/plugins/(?P<slug>[\w_-]+)/reset/$',
-        ProjectPluginResetView.as_view(),
-        name='sentry-reset-project-plugin'
-    ),
-    url(
-        r'^(?P<organization_slug>[\w_-]+)/(?P<project_slug>[\w_-]+)/settings/plugins/(?P<slug>[\w_-]+)/disable/$',
-        ProjectPluginDisableView.as_view(),
-        name='sentry-disable-project-plugin'
-    ),
-    url(
-        r'^(?P<organization_slug>[\w_-]+)/(?P<project_slug>[\w_-]+)/settings/plugins/(?P<slug>[\w_-]+)/enable/$',
-        ProjectPluginEnableView.as_view(),
-        name='sentry-enable-project-plugin'
     ),
     url(
         r'^(?P<organization_slug>[\w_-]+)/(?P<project_slug>[\w_-]+)/settings/remove/$',
@@ -459,21 +436,6 @@ urlpatterns += patterns(
         r'^(?P<organization_slug>[\w_-]+)/(?P<project_slug>[\w_-]+)/settings/transfer/$',
         TransferProjectView.as_view(),
         name='sentry-transfer-project'
-    ),
-    url(
-        r'^(?P<organization_slug>[\w_-]+)/(?P<project_slug>[\w_-]+)/settings/tags/$',
-        ProjectTagsView.as_view(),
-        name='sentry-manage-project-tags'
-    ),
-    url(
-        r'^(?P<organization_slug>[\w_-]+)/(?P<project_slug>[\w_-]+)/settings/alerts/rules/new/$',
-        ProjectRuleEditView.as_view(),
-        name='sentry-new-project-rule'
-    ),
-    url(
-        r'^(?P<organization_slug>[\w_-]+)/(?P<project_slug>[\w_-]+)/settings/alerts/rules/(?P<rule_id>\d+)/$',
-        ProjectRuleEditView.as_view(),
-        name='sentry-edit-project-rule'
     ),
     url(
         r'^avatar/(?P<avatar_id>[^\/]+)/$',

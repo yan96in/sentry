@@ -4,7 +4,7 @@ from collections import OrderedDict
 from functools import partial
 
 from sentry.testutils import TestCase
-from sentry.utils.safe import safe_execute, trim, trim_dict
+from sentry.utils.safe import safe_execute, trim, trim_dict, get_path
 
 a_very_long_string = 'a' * 1024
 
@@ -25,7 +25,7 @@ class TrimTest(TestCase):
     def test_idempotent(self):
         trm = partial(trim, max_depth=2)
         a = {'a': {'b': {'c': {'d': 1}}}}
-        assert trm(a) == {'a': {'b': {'c': "{'d': 1}"}}}
+        assert trm(a) == {'a': {'b': {'c': '{"d":1}'}}}
         assert trm(trm(trm(trm(a)))) == trm(a)
 
     def test_sorted_trim(self):
@@ -38,6 +38,20 @@ class TrimTest(TestCase):
 
         assert trm(alpha) == expected
         assert trm(reverse) == expected
+
+    def test_max_depth(self):
+        trm = partial(trim, max_depth=2)
+        a = {'a': {'b': {'c': 'd'}}}
+        assert trm(a) == a
+
+        a = {'a': {'b': {'c': u'd'}}}
+        assert trm(a) == {'a': {'b': {'c': 'd'}}}
+
+        a = {'a': {'b': {'c': {u'd': u'e'}}}}
+        assert trm(a) == {'a': {'b': {'c': '{"d":"e"}'}}}
+
+        a = {'a': {'b': {'c': []}}}
+        assert trm(a) == {'a': {'b': {'c': '[]'}}}
 
 
 class TrimDictTest(TestCase):
@@ -75,3 +89,14 @@ class SafeExecuteTest(TestCase):
                 raise Exception()
 
         assert safe_execute(Foo().simple, 1) is None
+
+
+class GetChainTest(TestCase):
+    def test_get_path(self):
+        assert get_path({}, ['a']) is None
+        assert get_path({}, ['a'], 1) == 1
+        assert get_path({'a': 2}, ['a']) == 2
+        assert get_path({'a': 2}, ['b']) is None
+        assert get_path({'a': 2}, ['b'], 1) == 1
+        assert get_path({'a': {'b': []}}, ['a', 'b']) == []
+        assert get_path({'a': []}, ['a', 'b']) is None

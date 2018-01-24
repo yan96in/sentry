@@ -1,18 +1,31 @@
 import PropTypes from 'prop-types';
 import React from 'react';
-import _ from 'lodash';
+import createReactClass from 'create-react-class';
 
-import ApiMixin from '../mixins/apiMixin';
 import {t, tct} from '../locale';
 import AlertActions from '../actions/alertActions';
-import PluginList from '../components/pluginList';
+import ApiMixin from '../mixins/apiMixin';
+import DynamicWrapper from '../components/dynamicWrapper';
 import LoadingError from '../components/loadingError';
 import LoadingIndicator from '../components/loadingIndicator';
+import Panel from './settings/components/panel';
+import PanelBody from './settings/components/panelBody';
+import PanelHeader from './settings/components/panelHeader';
+import PluginList from '../components/pluginList';
+import SentryTypes from '../proptypes';
+import SettingsPageHeader from './settings/components/settingsPageHeader';
+import TextBlock from './settings/components/text/textBlock';
+import withPlugins from '../utils/withPlugins';
 
-const ProjectReleaseTracking = React.createClass({
+const noMargin = {margin: 0};
+
+const ProjectReleaseTracking = createReactClass({
+  displayName: 'ProjectReleaseTracking',
+
   propTypes: {
     organization: PropTypes.object,
     project: PropTypes.object,
+    plugins: SentryTypes.PluginsStore,
   },
 
   mixins: [ApiMixin],
@@ -21,7 +34,6 @@ const ProjectReleaseTracking = React.createClass({
     return {
       loading: true,
       error: false,
-      pluginList: [],
       webhookUrl: '',
       token: '',
     };
@@ -33,9 +45,7 @@ const ProjectReleaseTracking = React.createClass({
 
   fetchData() {
     let {orgId, projectId} = this.props.params;
-    let done = _.after(2, () => {
-      this.setState({loading: false});
-    });
+
     this.api.request(`/projects/${orgId}/${projectId}/releases/token/`, {
       method: 'GET',
       success: data =>
@@ -48,50 +58,9 @@ const ProjectReleaseTracking = React.createClass({
           error: true,
         });
       },
-      complete: done,
-    });
-    this.getPluginConfig(done);
-  },
-
-  getPluginConfig(done) {
-    let {orgId, projectId} = this.props.params;
-    this.api.request(`/projects/${orgId}/${projectId}/plugins/`, {
-      success: data => {
-        this.setState({
-          pluginList: data.filter(p => p.type === 'release-tracking'),
-        });
+      complete: () => {
+        this.setState({loading: false});
       },
-      error: () => {
-        this.setState({
-          error: true,
-        });
-      },
-      complete: done,
-    });
-  },
-
-  onEnablePlugin(plugin) {
-    this.setState({
-      pluginList: this.state.pluginList.map(p => {
-        if (p.id !== plugin.id) return p;
-        return {
-          ...plugin,
-          enabled: true,
-        };
-      }),
-    });
-    this.getPluginConfig();
-  },
-
-  onDisablePlugin(plugin) {
-    this.setState({
-      pluginList: this.state.pluginList.map(p => {
-        if (p.id !== plugin.id) return p;
-        return {
-          ...plugin,
-          enabled: false,
-        };
-      }),
     });
   },
 
@@ -110,7 +79,6 @@ const ProjectReleaseTracking = React.createClass({
           token: data.token,
           webhookUrl: data.webhookUrl,
         });
-        this.getPluginConfig();
         AlertActions.addAlert({
           message: t(
             'Your deploy token has been regenerated. You will need to update any pre-existing deploy hooks.'
@@ -155,9 +123,9 @@ const ProjectReleaseTracking = React.createClass({
   },
 
   render() {
-    let {organization, project} = this.props;
-    let {pluginList} = this.state;
-    if (this.state.loading)
+    let {organization, project, plugins} = this.props;
+
+    if (this.state.loading || plugins.loading)
       return (
         <div className="box">
           <LoadingIndicator />
@@ -165,19 +133,22 @@ const ProjectReleaseTracking = React.createClass({
       );
     else if (this.state.error) return <LoadingError onRetry={this.fetchData} />;
 
+    let pluginList = plugins.plugins.filter(
+      p => p.type === 'release-tracking' && p.hasConfiguration
+    );
+
     return (
       <div>
-        <h2>{t('Release Tracking')}</h2>
-        <p>
+        <SettingsPageHeader title={t('Release Tracking')} />
+        <TextBlock>
           {t(
             'Configure release tracking for this project to automatically record new releases of your application.'
           )}
-        </p>
-        <div className="box">
-          <div className="box-header">
-            <h3>{t('Client Configuration')}</h3>
-          </div>
-          <div className="box-content with-padding">
+        </TextBlock>
+
+        <Panel>
+          <PanelHeader>{t('Client Configuration')}</PanelHeader>
+          <PanelBody disablePadding={false} flex>
             <p>
               {tct('Start by binding the [release] attribute in your application:', {
                 release: <code>release</code>,
@@ -189,19 +160,17 @@ const ProjectReleaseTracking = React.createClass({
                 "This will annotate each event with the version of your application, as well as automatically create a release entity in the system the first time it's seen."
               )}
             </p>
-            <p>
+            <div>
               {t(
                 'In addition you may configure a release hook (or use our API) to push a release and include additional metadata with it.'
               )}
-            </p>
-          </div>
-        </div>
+            </div>
+          </PanelBody>
+        </Panel>
 
-        <div className="box">
-          <div className="box-header">
-            <h3>{t('Token')}</h3>
-          </div>
-          <div className="box-content with-padding">
+        <Panel>
+          <PanelHeader>{t('Token')}</PanelHeader>
+          <PanelBody disablePadding={false} flex>
             <form>
               <p>
                 {t(
@@ -210,10 +179,10 @@ const ProjectReleaseTracking = React.createClass({
               </p>
               <p>
                 <code style={{display: 'inlineBlock'}} className="auto-select">
-                  {this.state.token}
+                  <DynamicWrapper value={this.state.token} fixed="__TOKEN__" />
                 </code>
               </p>
-              <p>
+              <div>
                 <button
                   type="submit"
                   className="btn btn-sm btn-danger"
@@ -221,18 +190,16 @@ const ProjectReleaseTracking = React.createClass({
                   value="regenerate-token"
                   onClick={this.onSubmit}
                 >
-                  Regenerate Token
+                  {t('Regenerate Token')}
                 </button>
-              </p>
+              </div>
             </form>
-          </div>
-        </div>
+          </PanelBody>
+        </Panel>
 
-        <div className="box">
-          <div className="box-header">
-            <h3>{t('Webhook')}</h3>
-          </div>
-          <div className="box-content with-padding">
+        <Panel>
+          <PanelHeader>{t('Webhook')}</PanelHeader>
+          <PanelBody disablePadding={false} flex>
             <form>
               <p>
                 {t(
@@ -240,7 +207,10 @@ const ProjectReleaseTracking = React.createClass({
                 )}
               </p>
 
-              <pre className="auto-select">{this.state.webhookUrl}</pre>
+              <DynamicWrapper
+                value={<pre className="auto-select">{this.state.webhookUrl}</pre>}
+                fixed={<pre className="auto-select">__WEBHOOK_URL__</pre>}
+              />
 
               <p>
                 {t(
@@ -248,41 +218,52 @@ const ProjectReleaseTracking = React.createClass({
                 )}
               </p>
 
-              <pre className="auto-select">{this.getReleaseWebhookIntructions()}</pre>
+              <DynamicWrapper
+                value={
+                  <pre style={noMargin} className="auto-select">
+                    {this.getReleaseWebhookIntructions()}
+                  </pre>
+                }
+                fixed={
+                  <pre style={noMargin} className="auto-select">
+                    {`curl __WEBHOOK_URL__ \\
+  -X POST \\
+  -H 'Content-Type: application/json' \\
+  -d \'{"version": "abcdefg"}\'`}
+                  </pre>
+                }
+              />
             </form>
-          </div>
-        </div>
+          </PanelBody>
+        </Panel>
 
         <PluginList
           organization={organization}
           project={project}
           pluginList={pluginList}
-          onEnablePlugin={this.onEnablePlugin}
-          onDisablePlugin={this.onDisablePlugin}
         />
-        <div className="box">
-          <div className="box-header">
-            <h3>{t('API')}</h3>
-          </div>
-          <div className="box-content with-padding">
+
+        <Panel>
+          <PanelHeader>{t('API')}</PanelHeader>
+          <PanelBody disablePadding={false} flex>
             <p>
               {t(
                 'You can notify Sentry when you release new versions of your application via our HTTP API.'
               )}
             </p>
 
-            <p>
+            <div>
               {t('See the ')}
               <a href="https://docs.sentry.io/hosted/api/releases/">
                 {t('Releases API documentation')}
               </a>{' '}
               {t('for more information.')}
-            </p>
-          </div>
-        </div>
+            </div>
+          </PanelBody>
+        </Panel>
       </div>
     );
   },
 });
 
-export default ProjectReleaseTracking;
+export default withPlugins(ProjectReleaseTracking);

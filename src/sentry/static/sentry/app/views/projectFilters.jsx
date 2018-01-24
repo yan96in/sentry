@@ -1,21 +1,24 @@
 import PropTypes from 'prop-types';
 import React from 'react';
-import _ from 'lodash';
 import ReactDOMServer from 'react-dom/server';
+import _ from 'lodash';
+import createReactClass from 'create-react-class';
 import moment from 'moment';
 
+import {FormState, TextareaField} from '../components/forms';
+import {intcomma} from '../utils';
+import {t, tn} from '../locale';
 import ApiMixin from '../mixins/apiMixin';
-import IndicatorStore from '../stores/indicatorStore';
 import GroupTombstones from '../components/groupTombstones';
 import HookStore from '../stores/hookStore';
+import IndicatorStore from '../stores/indicatorStore';
 import LoadingError from '../components/loadingError';
 import LoadingIndicator from '../components/loadingIndicator';
 import ProjectState from '../mixins/projectState';
+import SettingsPageHeader from './settings/components/settingsPageHeader';
 import StackedBarChart from '../components/stackedBarChart';
 import Switch from '../components/switch';
-import {FormState, TextareaField} from '../components/forms';
-import {t, tn} from '../locale';
-import {intcomma} from '../utils';
+import TextBlock from './settings/components/text/textBlock';
 import marked from '../utils/marked';
 
 const FilterSwitch = function(props) {
@@ -36,30 +39,35 @@ FilterSwitch.propTypes = {
   size: PropTypes.string.isRequired,
 };
 
-const FilterRow = React.createClass({
-  propTypes: {
+class FilterRow extends React.Component {
+  static propTypes = {
     orgId: PropTypes.string.isRequired,
     projectId: PropTypes.string.isRequired,
     data: PropTypes.object.isRequired,
     onToggle: PropTypes.func.isRequired,
-  },
+    idx: PropTypes.number.isRequired,
+  };
 
-  getInitialState() {
-    return {
-      loading: false,
-      error: false,
-    };
-  },
+  state = {
+    loading: false,
+    error: false,
+  };
 
-  onToggleSubfilters(active) {
+  onToggleSubfilters = active => {
     this.props.onToggle(this.props.data.subFilters, active);
-  },
+  };
 
   render() {
     let data = this.props.data;
 
     return (
-      <div style={{borderTop: '1px solid #f2f3f4', padding: '20px 0 0'}}>
+      <div
+        style={
+          this.props.idx === 0
+            ? {}
+            : {borderTop: '1px solid #f2f3f4', padding: '20px 0 0'}
+        }
+      >
         <div className="row">
           <div className="col-md-9">
             <h5 style={{marginBottom: 10}}>{data.name}</h5>
@@ -78,8 +86,8 @@ const FilterRow = React.createClass({
         </div>
       </div>
     );
-  },
-});
+  }
+}
 
 const LEGACY_BROWSER_SUBFILTERS = {
   ie_pre_9: {
@@ -116,31 +124,34 @@ const LEGACY_BROWSER_SUBFILTERS = {
 
 const LEGACY_BROWSER_KEYS = Object.keys(LEGACY_BROWSER_SUBFILTERS);
 
-const LegacyBrowserFilterRow = React.createClass({
-  propTypes: {
+class LegacyBrowserFilterRow extends React.Component {
+  static propTypes = {
     orgId: PropTypes.string.isRequired,
     projectId: PropTypes.string.isRequired,
     data: PropTypes.object.isRequired,
     onToggle: PropTypes.func.isRequired,
-  },
+    idx: PropTypes.number.isRequired,
+  };
 
-  getInitialState() {
+  constructor(props) {
+    super(props);
     let initialSubfilters;
-    if (this.props.data.active === true) {
+    if (props.data.active === true) {
       initialSubfilters = new Set(LEGACY_BROWSER_KEYS);
-    } else if (this.props.data.active === false) {
+    } else if (props.data.active === false) {
       initialSubfilters = new Set();
     } else {
-      initialSubfilters = new Set(this.props.data.active);
+      initialSubfilters = new Set(props.data.active);
     }
-    return {
+
+    this.state = {
       loading: false,
       error: false,
       subfilters: initialSubfilters,
     };
-  },
+  }
 
-  onToggleSubfilters(subfilter) {
+  onToggleSubfilters = subfilter => {
     let {subfilters} = this.state;
 
     if (subfilter === true) {
@@ -161,9 +172,9 @@ const LegacyBrowserFilterRow = React.createClass({
         this.props.onToggle(this.props.data, subfilters);
       }
     );
-  },
+  };
 
-  renderSubfilters() {
+  renderSubfilters = () => {
     let entries = LEGACY_BROWSER_KEYS.map(key => {
       let subfilter = LEGACY_BROWSER_SUBFILTERS[key];
       return (
@@ -190,13 +201,19 @@ const LegacyBrowserFilterRow = React.createClass({
         {row}
       </div>
     ));
-  },
+  };
 
   render() {
     let data = this.props.data;
 
     return (
-      <div style={{borderTop: '1px solid #f2f3f4', padding: '20px 0 0'}}>
+      <div
+        style={
+          this.props.idx === 0
+            ? {}
+            : {borderTop: '1px solid #f2f3f4', padding: '20px 0 0'}
+        }
+      >
         <div className="row">
           <div className="col-md-9">
             <h5 style={{marginBottom: 10}}>{data.name}</h5>
@@ -222,10 +239,12 @@ const LegacyBrowserFilterRow = React.createClass({
         {this.renderSubfilters()}
       </div>
     );
-  },
-});
+  }
+}
 
-const ProjectFiltersSettingsForm = React.createClass({
+const ProjectFiltersSettingsForm = createReactClass({
+  displayName: 'ProjectFiltersSettingsForm',
+
   propTypes: {
     orgId: PropTypes.string.isRequired,
     projectId: PropTypes.string.isRequired,
@@ -317,7 +336,7 @@ const ProjectFiltersSettingsForm = React.createClass({
     let errors = this.state.errors || {};
     return (
       <div>
-        <h5>{t('Filter errors from these releases:')}</h5>
+        <h5>{t('Filter events from these releases:')}</h5>
         <TextareaField
           key="release"
           name="release"
@@ -327,7 +346,7 @@ const ProjectFiltersSettingsForm = React.createClass({
           error={errors['filters:releases']}
           onChange={this.onFieldChange.bind(this, 'filters:releases')}
         />
-        <h5>{t('Filter errors by error message:')}</h5>
+        <h5>{t('Filter events by error message:')}</h5>
         <TextareaField
           key="errorMessage"
           name="errorMessage"
@@ -362,7 +381,7 @@ const ProjectFiltersSettingsForm = React.createClass({
           </div>
         )}
         <fieldset>
-          <h5>{t('Filter errors from these IP addresses:')}</h5>
+          <h5>{t('Filter events from these IP addresses:')}</h5>
           <TextareaField
             key="ip"
             name="ip"
@@ -390,7 +409,8 @@ const ProjectFiltersSettingsForm = React.createClass({
   },
 });
 
-const ProjectFilters = React.createClass({
+const ProjectFilters = createReactClass({
+  displayName: 'ProjectFilters',
   mixins: [ApiMixin, ProjectState],
 
   getInitialState() {
@@ -430,7 +450,7 @@ const ProjectFilters = React.createClass({
       'web-crawlers': 'Web Crawler',
       'invalid-csp': 'Invalid CSP',
       cors: 'CORS',
-      'discarded-hash': 'Discarded Group'
+      'discarded-hash': 'Discarded Issue',
     };
   },
 
@@ -617,13 +637,14 @@ const ProjectFilters = React.createClass({
     if (activeSection == 'data-filters') {
       return (
         <div>
-          {this.state.filterList.map(filter => {
+          {this.state.filterList.map((filter, idx) => {
             let props = {
               key: filter.id,
               data: filter,
               orgId,
               projectId,
               onToggle: this.onToggleFilter,
+              idx,
             };
             return filter.id === 'legacy-browsers' ? (
               <LegacyBrowserFilterRow {...props} />
@@ -728,29 +749,22 @@ const ProjectFilters = React.createClass({
             </div>
           )}
         </div>
-        {features.has('custom-filters') && (
-          <div className="sub-header flex flex-container flex-vertically-centered">
-            <div className="p-t-1">
-              <ul className="nav nav-tabs">
-                <li
-                  className={`col-xs-5  ${navSection == 'data-filters' ? 'active ' : ''}`}
-                >
-                  <a onClick={() => this.setProjectNavSection('data-filters')}>
-                    {t('Data Filters')}
-                  </a>
-                </li>
-                <li
-                  className={`col-xs-5 align-right ${navSection == 'discarded-groups'
-                    ? 'active '
-                    : ''}`}
-                >
-                  <a onClick={() => this.setProjectNavSection('discarded-groups')}>
-                    {t('Discarded Groups')}
-                  </a>
-                </li>
-              </ul>
-            </div>
-          </div>
+        {features.has('discard-groups') && (
+          <ul
+            className="nav nav-tabs"
+            style={{borderBottom: '1px solid #ddd', paddingTop: '30px'}}
+          >
+            <li className={navSection === 'data-filters' ? 'active' : ''}>
+              <a onClick={() => this.setProjectNavSection('data-filters')}>
+                {t('Data Filters')}
+              </a>
+            </li>
+            <li className={navSection === 'discarded-groups' ? 'active' : ''}>
+              <a onClick={() => this.setProjectNavSection('discarded-groups')}>
+                {t('Discarded Issues')}
+              </a>
+            </li>
+          </ul>
         )}
         {this.renderSection()}
       </div>
@@ -758,15 +772,14 @@ const ProjectFilters = React.createClass({
   },
 
   render() {
-    // TODO(dcramer): localize when language is final
     return (
       <div>
-        <h1>{t('Inbound Data Filters')}</h1>
-        <p>
+        <SettingsPageHeader title={t('Inbound Data Filters')} />
+        <TextBlock>
           {t(
             'Filters allow you to prevent Sentry from storing events in certain situations. Filtered events are tracked separately from rate limits, and do not apply to any project quotas.'
           )}
-        </p>
+        </TextBlock>
         {this.renderBody()}
       </div>
     );

@@ -1,9 +1,11 @@
 from __future__ import absolute_import, print_function
 
 import base64
+import jsonschema
 import logging
 import six
 import traceback
+import uuid
 
 from time import time
 
@@ -17,13 +19,17 @@ from django.views.decorators.cache import never_cache, cache_control
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View as BaseView
 from functools import wraps
+from querystring_parser import parser
 from raven.contrib.django.models import client as Raven
 
 from sentry import quotas, tsdb
 from sentry.coreapi import (
-    APIError, APIForbidden, APIRateLimited, ClientApiHelper, CspApiHelper, LazyData,
+    APIError, APIForbidden, APIRateLimited, ClientApiHelper, SecurityApiHelper, LazyData,
     MinidumpApiHelper,
 )
+from sentry.interfaces import schemas
+from sentry.interfaces.base import get_interface
+from sentry.lang.native.utils import merge_minidump_event
 from sentry.models import Project, OrganizationOption, Organization
 from sentry.signals import (
     event_accepted, event_dropped, event_filtered, event_received)
@@ -449,12 +455,6 @@ class StoreView(APIView):
         org_options = OrganizationOption.objects.get_all_values(
             project.organization_id)
 
-        if org_options.get('sentry:require_scrub_ip_address', False):
-            scrub_ip_address = True
-        else:
-            scrub_ip_address = project.get_option(
-                'sentry:scrub_ip_address', False)
-
         event_id = data['event_id']
 
         # TODO(dcramer): ideally we'd only validate this if the event_id was
@@ -465,10 +465,10 @@ class StoreView(APIView):
             raise APIForbidden(
                 'An event with the same ID already exists (%s)' % (event_id, ))
 
-        if org_options.get('sentry:require_scrub_data', False):
-            scrub_data = True
-        else:
-            scrub_data = project.get_option('sentry:scrub_data', True)
+        scrub_ip_address = (org_options.get('sentry:require_scrub_ip_address', False) or
+                            project.get_option('sentry:scrub_ip_address', False))
+        scrub_data = (org_options.get('sentry:require_scrub_data', False) or
+                      project.get_option('sentry:scrub_data', True))
 
         if scrub_data:
             # We filter data immediately before it ever gets into the queue
@@ -484,18 +484,14 @@ class StoreView(APIView):
                 project.get_option(exclude_fields_key, [])
             )
 
-            if org_options.get('sentry:require_scrub_defaults', False):
-                scrub_defaults = True
-            else:
-                scrub_defaults = project.get_option(
-                    'sentry:scrub_defaults', True)
+            scrub_defaults = (org_options.get('sentry:require_scrub_defaults', False) or
+                              project.get_option('sentry:scrub_defaults', True))
 
-            inst = SensitiveDataFilter(
+            SensitiveDataFilter(
                 fields=sensitive_fields,
                 include_defaults=scrub_defaults,
                 exclude_fields=exclude_fields,
-            )
-            inst.apply(data)
+            ).apply(data)
 
         if scrub_ip_address:
             # We filter data immediately before it ever gets into the queue
@@ -562,25 +558,55 @@ class MinidumpView(StoreView):
         )
 
     def post(self, request, **kwargs):
+        # Minidump request payloads do not have the same structure as
+        # usual events from other SDKs. Most notably, the event needs
+        # to be transfered in the `sentry` form field. All other form
+        # fields are assumed "extra" information. The only exception
+        # to this is `upload_file_minidump`, which contains the minidump.
+        extra = parser.parse(request.POST.urlencode())
+        data = extra.pop('sentry', {})
+        extra.update(data.get('extra', {}))
+        data['extra'] = extra
+        data['platform'] = 'native'
+
+        # At this point, we only extract the bare minimum information
+        # needed to continue processing. This requires to process the
+        # minidump without symbols and CFI to obtain an initial stack
+        # trace (most likely via stack scanning). If all validations
+        # pass, the event will be inserted into the database.
         try:
-            data = request.POST
-            data['upload_file_minidump'] = request.FILES['upload_file_minidump']
+            minidump = request.FILES['upload_file_minidump']
         except KeyError:
             raise APIError('Missing minidump upload')
 
+        merge_minidump_event(data, minidump)
         response_or_event_id = self.process(request, data=data, **kwargs)
         if isinstance(response_or_event_id, HttpResponse):
             return response_or_event_id
 
+        # Return the formatted UUID of the generated event. This is
+        # expected by the Electron http uploader on Linux and doesn't
+        # break the default Breakpad client library.
         return HttpResponse(
-            json.dumps({'id': response_or_event_id}),
-            content_type='application/json'
+            six.text_type(uuid.UUID(response_or_event_id)),
+            content_type='text/plain'
         )
 
 
-class CspReportView(StoreView):
-    helper_cls = CspApiHelper
-    content_types = ('application/csp-report', 'application/json')
+class StoreSchemaView(BaseView):
+    def get(self, request, **kwargs):
+        return HttpResponse(json.dumps(schemas.EVENT_SCHEMA), content_type='application/json')
+
+
+class SecurityReportView(StoreView):
+    helper_cls = SecurityApiHelper
+    content_types = (
+        'application/csp-report',
+        'application/json',
+        'application/expect-ct-report',
+        'application/expect-ct-report+json',
+        'application/expect-staple-report',
+    )
 
     def _dispatch(self, request, helper, project_id=None, origin=None, *args, **kwargs):
         # A CSP report is sent as a POST request with no Origin or Referer
@@ -618,39 +644,48 @@ class CspReportView(StoreView):
         )
 
     def post(self, request, project, helper, **kwargs):
-        data = helper.safely_load_json_string(request.body)
+        json_body = helper.safely_load_json_string(request.body)
+        report_type = self.security_report_type(json_body)
+        if report_type is None:
+            raise APIError('Unrecognized security report type')
+        interface = get_interface(report_type)
 
-        # Do origin check based on the `document-uri` key as explained
-        # in `_dispatch`.
         try:
-            report = data['csp-report']
-        except KeyError:
-            raise APIError('Missing csp-report')
+            instance = interface.from_raw(json_body)
+        except jsonschema.ValidationError as e:
+            raise APIError('Invalid security report: %s' % str(e).splitlines()[0])
 
-        origin = report.get('document-uri')
-
-        # No idea, but this is garbage
-        if origin == 'about:blank':
-            raise APIForbidden('Invalid document-uri')
-
+        # Do origin check based on the `document-uri` key as explained in `_dispatch`.
+        origin = instance.get_origin()
         if not is_valid_origin(origin, project):
             if project:
-                tsdb.incr(tsdb.models.project_total_received_cors,
-                          project.id)
-            raise APIForbidden('Invalid document-uri')
+                tsdb.incr(tsdb.models.project_total_received_cors, project.id)
+            raise APIForbidden('Invalid origin')
 
-        # Attach on collected meta data. This data obviously isn't a part
-        # of the spec, but we need to append to the report sentry specific things.
-        report['_meta'] = {
+        data = {
+            'interface': interface.path,
+            'report': instance,
             'release': request.GET.get('sentry_release'),
         }
 
         response_or_event_id = self.process(
-            request, project=project, helper=helper, data=report, **kwargs
+            request, project=project, helper=helper, data=data, **kwargs
         )
         if isinstance(response_or_event_id, HttpResponse):
             return response_or_event_id
         return HttpResponse(status=201)
+
+    def security_report_type(self, body):
+        report_type_for_key = {
+            'csp-report': 'sentry.interfaces.Csp',
+            'expect-ct-report': 'expectct',
+            'expect-staple-report': 'expectstaple',
+        }
+        if isinstance(body, dict):
+            for k in report_type_for_key:
+                if k in body:
+                    return report_type_for_key[k]
+        return None
 
 
 @cache_control(max_age=3600, public=True)

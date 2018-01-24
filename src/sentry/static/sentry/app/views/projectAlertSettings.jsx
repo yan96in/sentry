@@ -1,13 +1,16 @@
 import PropTypes from 'prop-types';
 import React from 'react';
 
+import {ApiForm, RangeField, TextField} from '../components/forms';
+import {t, tct} from '../locale';
 import AsyncView from './asyncView';
 import Button from '../components/buttons/button';
 import ListLink from '../components/listLink';
+import Panel from './settings/components/panel';
+import PanelBody from './settings/components/panelBody';
+import PanelHeader from './settings/components/panelHeader';
 import PluginList from '../components/pluginList';
-import {ApiForm, RangeField, TextField} from '../components/forms';
-import {t, tct} from '../locale';
-import SpreadLayout from '../components/spreadLayout';
+import SettingsPageHeader from './settings/components/settingsPageHeader';
 
 class DigestSettings extends React.Component {
   static propTypes = {
@@ -20,11 +23,9 @@ class DigestSettings extends React.Component {
   render() {
     let {orgId, projectId, initialData, onSave} = this.props;
     return (
-      <div className="box">
-        <div className="box-header">
-          <h3>{t('Digests')}</h3>
-        </div>
-        <div className="box-content with-padding">
+      <Panel>
+        <PanelHeader>{t('Digests')}</PanelHeader>
+        <PanelBody px={2} pt={2} flex>
           <p>
             {t(
               'Sentry will automatically digest alerts sent ' +
@@ -68,8 +69,8 @@ class DigestSettings extends React.Component {
               </div>
             </div>
           </ApiForm>
-        </div>
-      </div>
+        </PanelBody>
+      </Panel>
     );
   }
 }
@@ -85,12 +86,10 @@ class GeneralSettings extends React.Component {
   render() {
     let {orgId, projectId, initialData, onSave} = this.props;
     return (
-      <div className="box">
-        <div className="box-header">
-          <h3>{t('Email Settings')}</h3>
-        </div>
+      <Panel>
+        <PanelHeader>{t('Email Settings')}</PanelHeader>
 
-        <div className="box-content with-padding">
+        <PanelBody px={2} pt={2} flex>
           <ApiForm
             onSubmitSuccess={onSave}
             apiMethod="PUT"
@@ -103,12 +102,12 @@ class GeneralSettings extends React.Component {
               label={t('Subject template')}
               required={false}
               help={t(
-                'The email subject to use (excluding the prefix) for individual alerts. Usable variables include: $project, $title, and ${tag:key}, such as ${tag:environment} or ${tag:release}.'
+                'The email subject to use (excluding the prefix) for individual alerts. Usable variables include: $project, $title, $shortID, and ${tag:key}, such as ${tag:environment} or ${tag:release}.'
               )}
             />
           </ApiForm>
-        </div>
-      </div>
+        </PanelBody>
+      </Panel>
     );
   }
 }
@@ -184,27 +183,30 @@ export default class ProjectAlertSettings extends AsyncView {
     let {organization} = this.props;
     return (
       <div>
-        <SpreadLayout style={{marginBottom: 20}}>
-          <h2 style={{margin: 0}}>{t('Alerts')}</h2>
-          <Button
-            href={`/${orgId}/${projectId}/settings/alerts/rules/new/`}
-            priority="primary"
-            size="small"
-            className="pull-right"
-          >
-            <span className="icon-plus" />
-            {t('New Alert Rule')}
-          </Button>
-        </SpreadLayout>
-
-        <ul className="nav nav-tabs" style={{borderBottom: '1px solid #ddd'}}>
-          <ListLink to={`/${orgId}/${projectId}/settings/alerts/`} index={true}>
-            {t('Settings')}
-          </ListLink>
-          <ListLink to={`/${orgId}/${projectId}/settings/alerts/rules/`}>
-            {t('Rules')}
-          </ListLink>
-        </ul>
+        <SettingsPageHeader
+          title={t('Alerts')}
+          action={
+            <Button
+              to={`/${orgId}/${projectId}/settings/alerts/rules/new/`}
+              priority="primary"
+              size="small"
+              className="pull-right"
+            >
+              <span className="icon-plus" />
+              {t('New Alert Rule')}
+            </Button>
+          }
+          tabs={
+            <ul className="nav nav-tabs" style={{borderBottom: '1px solid #ddd'}}>
+              <ListLink to={`/${orgId}/${projectId}/settings/alerts/`} index={true}>
+                {t('Settings')}
+              </ListLink>
+              <ListLink to={`/${orgId}/${projectId}/settings/alerts/rules/`}>
+                {t('Rules')}
+              </ListLink>
+            </ul>
+          }
+        />
 
         <div className="alert alert-block alert-info">
           {tct(
@@ -239,7 +241,9 @@ export default class ProjectAlertSettings extends AsyncView {
         <PluginList
           organization={organization}
           project={this.state.project}
-          pluginList={this.state.pluginList.filter(p => p.type === 'notification')}
+          pluginList={this.state.pluginList.filter(
+            p => p.type === 'notification' && p.hasConfiguration
+          )}
           onEnablePlugin={this.onEnablePlugin}
           onDisablePlugin={this.onDisablePlugin}
         />

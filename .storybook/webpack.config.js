@@ -1,8 +1,17 @@
 const path = require('path');
 const webpack = require('webpack');
 
-const staticPath = path.resolve(__dirname, '..', 'src', 'sentry', 'static', 'sentry');
-const componentPath = path.resolve(staticPath, 'app', 'components');
+const staticPath = path.resolve(
+  __dirname,
+  '..',
+  'src',
+  'sentry',
+  'static',
+  'sentry',
+  'app'
+);
+const componentPath = path.resolve(staticPath, 'components');
+const newSettingsPath = path.resolve(staticPath, 'views', 'settings', 'components');
 
 const sentryConfig = require('../webpack.config');
 const appConfig = sentryConfig[0];
@@ -24,6 +33,17 @@ module.exports = {
         use: ['style-loader', 'css-loader'],
       },
       {
+        test: /app\/icons\/.*\.svg$/,
+        use: [
+          {
+            loader: 'svg-sprite-loader',
+          },
+          {
+            loader: 'svgo-loader',
+          },
+        ],
+      },
+      {
         test: /\.less$/,
         use: [
           {
@@ -39,6 +59,7 @@ module.exports = {
       },
       {
         test: /\.(woff|woff2|ttf|eot|svg|png|gif|ico|jpg)($|\?)/,
+        exclude: /app\/icons\/.*\.svg$/,
         loader: 'file-loader?name=' + '[name].[ext]',
       },
     ],
@@ -63,6 +84,8 @@ module.exports = {
     extensions: appConfig.resolve.extensions,
     alias: Object.assign({}, appConfig.resolve.alias, {
       'sentry-ui': componentPath,
+      'settings-ui': newSettingsPath,
+      'application-root': staticPath,
     }),
   },
 };

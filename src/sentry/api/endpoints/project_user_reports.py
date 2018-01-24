@@ -6,11 +6,12 @@ from rest_framework import serializers
 from rest_framework.response import Response
 from uuid import uuid4
 
-from sentry.api.base import DocSection
+from sentry.api.base import DocSection, EnvironmentMixin
 from sentry.api.bases.project import ProjectEndpoint
 from sentry.api.serializers import serialize, ProjectUserReportSerializer
 from sentry.api.paginator import DateTimePaginator
 from sentry.models import (Event, EventUser, Group, GroupStatus, UserReport)
+from sentry.signals import user_feedback_received
 from sentry.utils.apidocs import scenario, attach_scenarios
 
 
@@ -35,7 +36,7 @@ class UserReportSerializer(serializers.ModelSerializer):
         fields = ('name', 'email', 'comments', 'event_id')
 
 
-class ProjectUserReportsEndpoint(ProjectEndpoint):
+class ProjectUserReportsEndpoint(ProjectEndpoint, EnvironmentMixin):
     doc_section = DocSection.PROJECTS
 
     def get(self, request, project):
@@ -66,7 +67,10 @@ class ProjectUserReportsEndpoint(ProjectEndpoint):
             request=request,
             queryset=queryset,
             order_by='-date_added',
-            on_results=lambda x: serialize(x, request.user, ProjectUserReportSerializer()),
+            on_results=lambda x: serialize(x, request.user, ProjectUserReportSerializer(
+                environment_func=self._get_environment_func(
+                    request, project.organization_id)
+            )),
             paginator_cls=DateTimePaginator,
         )
 
@@ -130,7 +134,16 @@ class ProjectUserReportsEndpoint(ProjectEndpoint):
             )
             report = existing_report
 
-        return Response(serialize(report, request.user, ProjectUserReportSerializer()))
+        else:
+            if report.group:
+                report.notify()
+
+        user_feedback_received.send(project=report.project, group=report.group, sender=self)
+
+        return Response(serialize(report, request.user, ProjectUserReportSerializer(
+            environment_func=self._get_environment_func(
+                request, project.organization_id)
+        )))
 
     def find_event_user(self, report):
         try:

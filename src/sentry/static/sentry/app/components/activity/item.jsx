@@ -3,7 +3,9 @@ import React from 'react';
 import {Link} from 'react-router';
 import marked from 'marked';
 
-import {CommitLink} from '../../views/releases/releaseCommits';
+import CommitLink from '../../views/releases/commitLink';
+import PullRequestLink from '../../views/releases/pullRequestLink';
+
 import Duration from '../../components/duration';
 import Avatar from '../../components/avatar';
 import IssueLink from '../../components/issueLink';
@@ -13,26 +15,25 @@ import Version from '../../components/version';
 
 import {t, tn, tct} from '../../locale';
 
-const ActivityItem = React.createClass({
-  propTypes: {
+class ActivityItem extends React.Component {
+  static propTypes = {
     clipHeight: PropTypes.number,
     defaultClipped: PropTypes.bool,
     item: PropTypes.object.isRequired,
     orgId: PropTypes.string.isRequired,
-  },
+  };
 
-  getDefaultProps() {
-    return {
-      defaultClipped: false,
-      clipHeight: 68,
-    };
-  },
+  static defaultProps = {
+    defaultClipped: false,
+    clipHeight: 68,
+  };
 
-  getInitialState() {
-    return {
+  constructor(...args) {
+    super(...args);
+    this.state = {
       clipped: this.props.defaultClipped,
     };
-  },
+  }
 
   componentDidMount() {
     if (this.refs.activityBubble) {
@@ -47,9 +48,9 @@ const ActivityItem = React.createClass({
         });
       }
     }
-  },
+  }
 
-  formatProjectActivity(author, item) {
+  formatProjectActivity = (author, item) => {
     let data = item.data;
     let orgId = this.props.orgId;
     let project = item.project;
@@ -109,6 +110,18 @@ const ActivityItem = React.createClass({
           ),
           issue: issueLink,
         });
+      case 'set_resolved_in_pull_request':
+        return tct('[author] marked [issue] as fixed in [version]', {
+          author,
+          version: (
+            <PullRequestLink
+              inline={true}
+              pullRequest={data.pullRequest}
+              repository={data.pullRequest.repository}
+            />
+          ),
+          issue: issueLink,
+        });
       case 'set_unresolved':
         return tct('[author] marked [issue] as unresolved', {
           author,
@@ -127,7 +140,7 @@ const ActivityItem = React.createClass({
             {
               author,
               count: data.ignoreCount,
-              duration: <Duration seconds={data.ignoreWindow * 3600} />,
+              duration: <Duration seconds={data.ignoreWindow * 60} />,
               issue: issueLink,
             }
           );
@@ -143,7 +156,7 @@ const ActivityItem = React.createClass({
             {
               author,
               count: data.ignoreUserCount,
-              duration: <Duration seconds={data.ignoreUserWindow * 3600} />,
+              duration: <Duration seconds={data.ignoreUserWindow * 60} />,
               issue: issueLink,
             }
           );
@@ -264,7 +277,7 @@ const ActivityItem = React.createClass({
       default:
         return ''; // should never hit (?)
     }
-  },
+  };
 
   render() {
     let item = this.props.item;
@@ -361,7 +374,7 @@ const ActivityItem = React.createClass({
         </li>
       );
     }
-  },
-});
+  }
+}
 
 export default ActivityItem;

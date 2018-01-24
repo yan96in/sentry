@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import {shallow, mount} from 'enzyme';
 import _ from 'lodash';
 import InviteMember from 'app/views/inviteMember/inviteMember';
@@ -9,14 +10,16 @@ jest.mock('app/api');
 jest.mock('jquery');
 
 describe('CreateProject', function() {
+  let sandbox;
+
   beforeEach(function() {
-    this.sandbox = sinon.sandbox.create();
-    this.sandbox.stub(ConfigStore, 'getConfig').returns({id: 1, invitesEnabled: true});
+    sandbox = sinon.sandbox.create();
+    sandbox.stub(ConfigStore, 'getConfig').returns({id: 1, invitesEnabled: true});
     Client.clearMockResponses();
   });
 
   afterEach(function() {
-    this.sandbox.restore();
+    sandbox.restore();
   });
 
   describe('render()', function() {
@@ -40,9 +43,9 @@ describe('CreateProject', function() {
         location: {query: {}},
       },
       childContextTypes: {
-        organization: React.PropTypes.object,
-        location: React.PropTypes.object,
-        router: React.PropTypes.object,
+        organization: PropTypes.object,
+        location: PropTypes.object,
+        router: PropTypes.object,
       },
     };
 
@@ -78,8 +81,8 @@ describe('CreateProject', function() {
     });
 
     it('should use invite/add language based on config', function() {
-      this.sandbox.restore(ConfigStore, 'getConfig');
-      this.sandbox.stub(ConfigStore, 'getConfig').returns({id: 1, invitesEnabled: false});
+      sandbox.restore(ConfigStore, 'getConfig');
+      sandbox.stub(ConfigStore, 'getConfig').returns({id: 1, invitesEnabled: false});
 
       let wrapper = shallow(<InviteMember {...baseProps} />, baseContext);
       wrapper.setState({
@@ -105,10 +108,7 @@ describe('CreateProject', function() {
         },
       });
 
-      let handleSubmitStub = this.sandbox.stub(
-        InviteMember.prototype,
-        'redirectToMemberPage'
-      );
+      let handleSubmitStub = sandbox.stub(InviteMember.prototype, 'redirectToMemberPage');
       // 👺 ⚠️ this is a hack to defeat the method auto binding so we can fully stub the method. It would not be neccessary with es6 class components and it relies on react internals so it's fragile - maxbittker
       const index =
         InviteMember.prototype.__reactAutoBindPairs.indexOf('redirectToMemberPage') + 1;
@@ -138,7 +138,7 @@ describe('CreateProject', function() {
         body: {},
       };
 
-      Client.addMockResponse(inviteRequest);
+      let mock = Client.addMockResponse(inviteRequest);
 
       let wrapper = mount(<InviteMember {...baseProps} />, baseContext);
 
@@ -161,7 +161,7 @@ describe('CreateProject', function() {
       node.props().onClick({preventDefault: () => {}});
       expect(wrapper.state('busy')).toBe(true);
       expect(wrapper.state('error')).toBe(undefined);
-      expect(Client.getCallCount(inviteRequest)).toBe(3);
+      expect(mock).toHaveBeenCalledTimes(3);
     });
   });
 });

@@ -4,7 +4,6 @@ import logging
 from collections import defaultdict
 
 from django.db import transaction
-from django.db.models import F
 
 from sentry import tagstore
 from sentry.app import tsdb
@@ -221,10 +220,11 @@ def migrate_events(caches, project, source_id, destination_id, fingerprints, eve
     for event in events:
         event.group = destination
 
-    tagstore.get_event_tag_qs(
+    tagstore.update_group_for_events(
         project_id=project.id,
-        event_id__in=event_id_set,
-    ).update(group_id=destination_id)
+        event_ids=event_id_set,
+        destination_id=destination_id
+    )
 
     event_event_id_set = set(event.event_id for event in events)
 
@@ -242,8 +242,8 @@ def migrate_events(caches, project, source_id, destination_id, fingerprints, eve
 
 
 def truncate_denormalizations(group):
-    tagstore.delete_all_group_tag_keys(group.id)
-    tagstore.delete_all_group_tag_values(group.id)
+    tagstore.delete_all_group_tag_keys(group.project_id, group.id)
+    tagstore.delete_all_group_tag_values(group.project_id, group.id)
 
     GroupRelease.objects.filter(
         group_id=group.id,
@@ -310,7 +310,7 @@ def repair_tag_data(caches, project, events):
             # ingestion logic (but actually represent a more accurate value.)
             # See GH-5289 for more details.
             for value, (times_seen, first_seen, last_seen) in values.items():
-                instance, created = tagstore.get_or_create_group_tag_value(
+                _, created = tagstore.get_or_create_group_tag_value(
                     project_id=project.id,
                     group_id=group_id,
                     environment_id=environment.id,
@@ -324,9 +324,14 @@ def repair_tag_data(caches, project, events):
                 )
 
                 if not created:
-                    instance.update(
-                        first_seen=first_seen,
-                        times_seen=F('times_seen') + times_seen,
+                    tagstore.incr_group_tag_value_times_seen(
+                        project_id=project.id,
+                        group_id=group_id,
+                        environment_id=environment.id,
+                        key=key,
+                        value=value,
+                        count=times_seen,
+                        extra={'first_seen': first_seen}
                     )
 
 
@@ -543,7 +548,7 @@ def unmerge(
 
     # If there are no more events to process, we're done with the migration.
     if not events:
-        tagstore.update_group_tag_key_values_seen([source_id, destination_id])
+        tagstore.update_group_tag_key_values_seen(project_id, [source_id, destination_id])
         unlock_hashes(project_id, fingerprints)
         return destination_id
 

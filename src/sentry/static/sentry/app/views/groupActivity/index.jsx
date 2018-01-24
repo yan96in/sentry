@@ -1,10 +1,14 @@
 import PropTypes from 'prop-types';
 import React from 'react';
 
+import createReactClass from 'create-react-class';
+
 import ApiMixin from '../../mixins/apiMixin';
 import GroupState from '../../mixins/groupState';
 
-import {CommitLink} from '../../views/releases/releaseCommits';
+import CommitLink from '../../views/releases/commitLink';
+import PullRequestLink from '../../views/releases/pullRequestLink';
+
 import Duration from '../../components/duration';
 import Avatar from '../../components/avatar';
 import TimeSince from '../../components/timeSince';
@@ -19,7 +23,9 @@ import MemberListStore from '../../stores/memberListStore';
 
 import {t, tct, tn} from '../../locale';
 
-const GroupActivity = React.createClass({
+const GroupActivity = createReactClass({
+  displayName: 'GroupActivity',
+
   // TODO(dcramer): only re-render on group/activity change
   propTypes: {
     group: PropTypes.object,
@@ -60,6 +66,17 @@ const GroupActivity = React.createClass({
             />
           ),
         });
+      case 'set_resolved_in_pull_request':
+        return t('%(author)s marked this issue as fixed in %(version)s', {
+          author,
+          version: (
+            <PullRequestLink
+              inline={true}
+              pullRequest={data.pullRequest}
+              repository={data.pullRequest.repository}
+            />
+          ),
+        });
       case 'set_unresolved':
         return t('%s marked this issue as unresolved', author);
       case 'set_ignored':
@@ -74,7 +91,7 @@ const GroupActivity = React.createClass({
             {
               author,
               count: data.ignoreCount,
-              duration: <Duration seconds={data.ignoreWindow * 3600} />,
+              duration: <Duration seconds={data.ignoreWindow * 60} />,
             }
           );
         } else if (data.ignoreCount) {
@@ -88,7 +105,7 @@ const GroupActivity = React.createClass({
             {
               author,
               count: data.ignoreUserCount,
-              duration: <Duration seconds={data.ignoreUserWindow * 3600} />,
+              duration: <Duration seconds={data.ignoreUserWindow * 60} />,
             }
           );
         } else if (data.ignoreUserCount) {
@@ -226,7 +243,7 @@ const GroupActivity = React.createClass({
           <NoteContainer
             group={group}
             item={item}
-            key={itemIdx}
+            key={'note' + itemIdx}
             author={author}
             onDelete={this.onNoteDelete}
             sessionUser={me}

@@ -24,9 +24,9 @@ class OrganizationReleaseListTest(APITestCase):
         team1 = self.create_team(organization=org)
         team2 = self.create_team(organization=org)
 
-        project1 = self.create_project(team=team1, organization=org)
-        project2 = self.create_project(team=team2, organization=org2)
-        project3 = self.create_project(team=team1, organization=org)
+        project1 = self.create_project(teams=[team1], organization=org)
+        project2 = self.create_project(teams=[team2], organization=org2)
+        project3 = self.create_project(teams=[team1], organization=org)
 
         self.create_member(teams=[team1], user=user, organization=org)
 
@@ -78,7 +78,7 @@ class OrganizationReleaseListTest(APITestCase):
 
         team = self.create_team(organization=org)
 
-        project = self.create_project(team=team, organization=org)
+        project = self.create_project(teams=[team], organization=org)
 
         self.create_member(teams=[team], user=user, organization=org)
 
@@ -119,8 +119,8 @@ class OrganizationReleaseListTest(APITestCase):
         team1 = self.create_team(organization=org)
         team2 = self.create_team(organization=org)
 
-        project1 = self.create_project(team=team1, organization=org)
-        project2 = self.create_project(team=team2, organization=org)
+        project1 = self.create_project(teams=[team1], organization=org)
+        project2 = self.create_project(teams=[team2], organization=org)
 
         self.create_member(teams=[team1], user=user, organization=org)
         self.login_as(user=user)
@@ -164,8 +164,8 @@ class OrganizationReleaseCreateTest(APITestCase):
         org.save()
 
         team = self.create_team(organization=org)
-        project = self.create_project(name='foo', organization=org, team=team)
-        project2 = self.create_project(name='bar', organization=org, team=team)
+        project = self.create_project(name='foo', organization=org, teams=[team])
+        project2 = self.create_project(name='bar', organization=org, teams=[team])
 
         self.create_member(teams=[team], user=user, organization=org)
         self.login_as(user=user)
@@ -203,7 +203,7 @@ class OrganizationReleaseCreateTest(APITestCase):
         )
 
         team = self.create_team(organization=org)
-        project = self.create_project(name='foo', organization=org, team=team)
+        project = self.create_project(name='foo', organization=org, teams=[team])
 
         self.create_member(teams=[team], user=user, organization=org)
         self.login_as(user=user)
@@ -300,8 +300,8 @@ class OrganizationReleaseCreateTest(APITestCase):
         org.save()
 
         team = self.create_team(organization=org)
-        project = self.create_project(name='foo', organization=org, team=team)
-        project2 = self.create_project(name='bar', organization=org, team=team)
+        project = self.create_project(name='foo', organization=org, teams=[team])
+        project2 = self.create_project(name='bar', organization=org, teams=[team])
 
         self.create_member(teams=[team], user=user, organization=org)
         self.login_as(user=user)
@@ -334,6 +334,47 @@ class OrganizationReleaseCreateTest(APITestCase):
             type=Activity.RELEASE, project=project2, ident=release.version
         ).exists()
 
+    def test_activity_with_long_release(self):
+        user = self.create_user(is_staff=False, is_superuser=False)
+        org = self.create_organization()
+        org.flags.allow_joinleave = False
+        org.save()
+
+        team = self.create_team(organization=org)
+        project = self.create_project(name='foo', organization=org, teams=[team])
+        project2 = self.create_project(name='bar', organization=org, teams=[team])
+
+        self.create_member(teams=[team], user=user, organization=org)
+        self.login_as(user=user)
+
+        release = Release.objects.create(
+            version='x' * 65, date_released=datetime.utcnow(), organization=org
+        )
+        release.add_project(project)
+
+        url = reverse(
+            'sentry-api-0-organization-releases', kwargs={
+                'organization_slug': org.slug,
+            }
+        )
+
+        response = self.client.post(url, data={'version': 'x' * 65, 'projects': [project.slug]})
+        assert response.status_code == 208, response.content
+
+        response = self.client.post(
+            url, data={'version': 'x' * 65,
+                       'projects': [project.slug, project2.slug]}
+        )
+
+        # should be 201 because 1 project was added
+        assert response.status_code == 201, response.content
+        assert not Activity.objects.filter(
+            type=Activity.RELEASE, project=project, ident=release.version[:64]
+        ).exists()
+        assert Activity.objects.filter(
+            type=Activity.RELEASE, project=project2, ident=release.version[:64]
+        ).exists()
+
     def test_version_whitespace(self):
         user = self.create_user(is_staff=False, is_superuser=False)
         org = self.create_organization()
@@ -341,7 +382,7 @@ class OrganizationReleaseCreateTest(APITestCase):
         org.save()
 
         team = self.create_team(organization=org)
-        project = self.create_project(name='foo', organization=org, team=team)
+        project = self.create_project(name='foo', organization=org, teams=[team])
 
         self.create_member(teams=[team], user=user, organization=org)
         self.login_as(user=user)
@@ -380,7 +421,7 @@ class OrganizationReleaseCreateTest(APITestCase):
         org.save()
 
         team = self.create_team(organization=org)
-        project = self.create_project(name='foo', organization=org, team=team)
+        project = self.create_project(name='foo', organization=org, teams=[team])
 
         self.create_member(teams=[team], user=user, organization=org)
         self.login_as(user=user)
@@ -408,7 +449,7 @@ class OrganizationReleaseCreateTest(APITestCase):
         org.save()
 
         team = self.create_team(organization=org)
-        project = self.create_project(name='foo', organization=org, team=team)
+        project = self.create_project(name='foo', organization=org, teams=[team])
 
         self.create_member(teams=[team], user=user, organization=org)
         self.login_as(user=user)
@@ -466,7 +507,7 @@ class OrganizationReleaseCreateTest(APITestCase):
         )
 
         team = self.create_team(organization=org)
-        project = self.create_project(name='foo', organization=org, team=team)
+        project = self.create_project(name='foo', organization=org, teams=[team])
 
         self.create_member(teams=[team], user=user, organization=org)
         self.login_as(user=user)
@@ -550,7 +591,7 @@ class OrganizationReleaseCreateTest(APITestCase):
         )
 
         team = self.create_team(organization=org)
-        project = self.create_project(name='foo', organization=org, team=team)
+        project = self.create_project(name='foo', organization=org, teams=[team])
 
         self.create_member(teams=[team], user=user, organization=org)
         self.login_as(user=user)
@@ -624,7 +665,7 @@ class OrganizationReleaseCreateTest(APITestCase):
         org.save()
 
         team = self.create_team(organization=org)
-        project = self.create_project(name='foo', organization=org, team=team)
+        project = self.create_project(name='foo', organization=org, teams=[team])
 
         self.create_member(teams=[team], user=user, organization=org)
         self.login_as(user=user)
@@ -646,8 +687,8 @@ class OrganizationReleaseCreateTest(APITestCase):
         team1 = self.create_team(organization=org)
         team2 = self.create_team(organization=org)
 
-        project1 = self.create_project(team=team1, organization=org)
-        project2 = self.create_project(team=team2, organization=org)
+        project1 = self.create_project(teams=[team1], organization=org)
+        project2 = self.create_project(teams=[team2], organization=org)
 
         self.create_member(teams=[team1], user=user, organization=org)
         self.login_as(user=user)
@@ -695,7 +736,7 @@ class OrganizationReleaseCreateTest(APITestCase):
         org2 = self.create_organization()
 
         team1 = self.create_team(organization=org)
-        project1 = self.create_project(team=team1, organization=org)
+        project1 = self.create_project(teams=[team1], organization=org)
         release1 = Release.objects.create(
             organization_id=org.id,
             version='1',
@@ -769,7 +810,7 @@ class OrganizationReleaseCreateTest(APITestCase):
 
         team1 = self.create_team(organization=org)
         self.create_member(teams=[team1], user=user, organization=org)
-        project1 = self.create_project(team=team1, organization=org)
+        project1 = self.create_project(teams=[team1], organization=org)
         release1 = Release.objects.create(
             organization_id=org.id,
             version='1',
@@ -831,7 +872,7 @@ class OrganizationReleaseCreateTest(APITestCase):
         org.save()
 
         team = self.create_team(organization=org)
-        project = self.create_project(name='foo', organization=org, team=team)
+        project = self.create_project(name='foo', organization=org, teams=[team])
 
         self.create_member(teams=[team], user=user, organization=org)
         self.login_as(user=user)

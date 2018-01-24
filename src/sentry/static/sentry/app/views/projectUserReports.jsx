@@ -1,19 +1,20 @@
 import jQuery from 'jquery';
 import PropTypes from 'prop-types';
 import React from 'react';
+import createReactClass from 'create-react-class';
 import {browserHistory, Link} from 'react-router';
 import ApiMixin from '../mixins/apiMixin';
-import Avatar from '../components/avatar';
 import GroupStore from '../stores/groupStore';
 import LoadingError from '../components/loadingError';
 import LoadingIndicator from '../components/loadingIndicator';
 import Pagination from '../components/pagination';
 import CompactIssue from '../components/compactIssue';
-import TimeSince from '../components/timeSince';
-import utils from '../utils';
+import EventUserReport from '../components/events/userReport';
 import {t} from '../locale';
 
-const ProjectUserReports = React.createClass({
+const ProjectUserReports = createReactClass({
+  displayName: 'ProjectUserReports',
+
   propTypes: {
     defaultQuery: PropTypes.string,
     defaultStatus: PropTypes.string,
@@ -53,13 +54,10 @@ const ProjectUserReports = React.createClass({
   },
 
   getQueryStringState(props) {
-    let location = props.location;
-    let status = location.query.hasOwnProperty('status')
-      ? location.query.status
-      : this.props.defaultStatus;
-    let query = location.query.hasOwnProperty('query')
-      ? location.query.query
-      : this.props.defaultQuery;
+    let q = props.location.query;
+    let status = 'status' in q ? q.status : this.props.defaultStatus;
+    let query = 'query' in q ? q.query : this.props.defaultQuery;
+
     return {
       query,
       status,
@@ -73,11 +71,10 @@ const ProjectUserReports = React.createClass({
       targetQueryParams.status = this.state.status;
 
     let {orgId, projectId} = this.props.params;
-    browserHistory.pushState(
-      null,
-      `/${orgId}/${projectId}/user-feedback/`,
-      targetQueryParams
-    );
+    browserHistory.push({
+      pathname: `/${orgId}/${projectId}/user-feedback/`,
+      query: targetQueryParams,
+    });
   },
 
   fetchData() {
@@ -172,8 +169,8 @@ const ProjectUserReports = React.createClass({
 
   renderResults() {
     let {orgId, projectId} = this.props.params;
+
     let children = this.state.reportList.map((item, itemIdx) => {
-      let body = utils.nl2br(utils.urlize(utils.escape(item.comments)));
       let issue = item.issue;
 
       return (
@@ -184,20 +181,12 @@ const ProjectUserReports = React.createClass({
           orgId={orgId}
           projectId={projectId}
         >
-          <div className="activity-container" style={{margin: '10px 0 5px'}}>
-            <ul className="activity">
-              <li className="activity-note" style={{paddingBottom: 0}}>
-                <Avatar user={item} size={64} className="avatar" />
-                <div className="activity-bubble">
-                  <TimeSince date={item.dateCreated} />
-                  <div className="activity-author">
-                    {item.name} <small>{item.email}</small>
-                  </div>
-                  <p dangerouslySetInnerHTML={{__html: body}} />
-                </div>
-              </li>
-            </ul>
-          </div>
+          <EventUserReport
+            report={item}
+            orgId={orgId}
+            projectId={projectId}
+            issueId={issue.id}
+          />
         </CompactIssue>
       );
     });

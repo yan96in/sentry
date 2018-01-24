@@ -10,7 +10,6 @@ from __future__ import absolute_import, print_function
 import logging
 import math
 import re
-import six
 import time
 import warnings
 
@@ -160,12 +159,12 @@ class GroupManager(BaseManager):
             else:
                 key, value, data = tag_item
 
-            tagstore.incr_tag_value_times_seen(project_id, environment.id, key, value, {
+            tagstore.incr_tag_value_times_seen(project_id, environment.id, key, value, extra={
                 'last_seen': date,
                 'data': data,
             })
 
-            tagstore.incr_group_tag_value_times_seen(group.id, environment.id, key, value, {
+            tagstore.incr_group_tag_value_times_seen(project_id, group.id, environment.id, key, value, extra={
                 'project_id': project_id,
                 'last_seen': date,
             })
@@ -352,30 +351,14 @@ class Group(Model):
                 self._oldest_event = None
         return self._oldest_event
 
-    def get_tags(self):
-        if not hasattr(self, '_tag_cache'):
-            group_tags = set(
-                [gtk.key for gtk in tagstore.get_group_tag_keys(self.id, environment_id=None)])
-
-            results = []
-            for key in group_tags:
-                results.append({
-                    'key': key,
-                    'label': tagstore.get_tag_key_label(key),
-                })
-
-            self._tag_cache = sorted(results, key=lambda x: x['label'])
-
-        return self._tag_cache
-
     def get_first_release(self):
         if self.first_release_id is None:
-            return tagstore.get_first_release(self.id)
+            return tagstore.get_first_release(self.project_id, self.id)
 
         return self.first_release.version
 
     def get_last_release(self):
-        return tagstore.get_last_release(self.id)
+        return tagstore.get_last_release(self.project_id, self.id)
 
     def get_event_type(self):
         """
@@ -421,21 +404,16 @@ class Group(Model):
         return self.project.organization
 
     @property
-    def team(self):
-        return self.project.team
-
-    @property
     def checksum(self):
         warnings.warn('Group.checksum is no longer used', DeprecationWarning)
         return ''
 
     def get_email_subject(self):
-        return '[%s] %s: %s' % (
-            self.project.get_full_name().encode('utf-8'),
-            six.text_type(self.get_level_display()).upper().encode('utf-8'),
+        return '%s - %s' % (
+            self.qualified_short_id.encode('utf-8'),
             self.title.encode('utf-8')
         )
 
     def count_users_seen(self):
-        return tagstore.get_group_values_seen(
-            self.id, environment_id=None, key='sentry:user')[self.id]
+        return tagstore.get_groups_user_counts(
+            self.project_id, [self.id], environment_id=None)[self.id]

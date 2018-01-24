@@ -7,16 +7,20 @@ from datetime import datetime
 import mock
 import pytz
 import six
+from django.contrib.auth.models import AnonymousUser
 from django.core import mail
 from django.utils import timezone
 from exam import fixture
 from mock import Mock
 
+from sentry.api.serializers import (
+    serialize, ProjectUserReportSerializer
+)
 from sentry.digests.notifications import build_digest, event_to_record
 from sentry.interfaces.stacktrace import Stacktrace
 from sentry.models import (
     Activity, Event, Group, GroupSubscription, OrganizationMember, OrganizationMemberTeam, Rule,
-    UserOption
+    UserOption, UserReport
 )
 from sentry.plugins import Notification
 from sentry.plugins.sentry_mail.activity.base import ActivityEmail
@@ -51,7 +55,7 @@ class MailPluginTest(TestCase):
             self.plugin.notify(notification)
 
         msg = mail.outbox[0]
-        assert msg.subject == '[Sentry] [foo Bar] error: Hello world'
+        assert msg.subject == '[Sentry] BAR-1 - Hello world'
         assert 'my rule' in msg.alternatives[0][0]
 
     @mock.patch('sentry.plugins.sentry_mail.models.MailPlugin._send_mail')
@@ -117,6 +121,7 @@ class MailPluginTest(TestCase):
             project=self.project,
             message='hello world',
             logger='root',
+            short_id=2,
         )
 
         event = Event(
@@ -138,9 +143,7 @@ class MailPluginTest(TestCase):
         args, kwargs = _send_mail.call_args
         self.assertEquals(kwargs.get('project'), self.project)
         self.assertEquals(kwargs.get('reference'), group)
-        assert kwargs.get('subject') == u"[{0} {1}] error: hello world".format(
-            self.team.name, self.project.name
-        )
+        assert kwargs.get('subject') == u'BAR-2 - hello world'
 
     @mock.patch('sentry.plugins.sentry_mail.models.MailPlugin._send_mail')
     def test_multiline_error(self, _send_mail):
@@ -151,6 +154,7 @@ class MailPluginTest(TestCase):
             project=self.project,
             message='hello world\nfoo bar',
             logger='root',
+            short_id=2,
         )
 
         event = Event(
@@ -170,9 +174,7 @@ class MailPluginTest(TestCase):
 
         assert _send_mail.call_count is 1
         args, kwargs = _send_mail.call_args
-        assert kwargs.get('subject') == u"[{0} {1}] error: hello world".format(
-            self.team.name, self.project.name
-        )
+        assert kwargs.get('subject') == u'BAR-2 - hello world'
 
     def test_get_sendable_users(self):
         from sentry.models import UserOption, User
@@ -189,7 +191,7 @@ class MailPluginTest(TestCase):
         organization = self.create_organization(owner=user)
         team = self.create_team(organization=organization)
 
-        project = self.create_project(name='Test', team=team)
+        project = self.create_project(name='Test', teams=[team])
         OrganizationMemberTeam.objects.create(
             organizationmember=OrganizationMember.objects.get(
                 user=user,
@@ -237,14 +239,14 @@ class MailPluginTest(TestCase):
 
         assert len(mail.outbox) == 1
         msg = mail.outbox[0]
-        assert msg.subject == u'[Sentry] [foo Bar] error: רונית מגן'
+        assert msg.subject == u'[Sentry] BAR-1 - רונית מגן'
 
     def test_get_digest_subject(self):
         assert self.plugin.get_digest_subject(
-            mock.Mock(get_full_name=lambda: 'Rick & Morty'),
+            mock.Mock(qualified_short_id='BAR-1'),
             {mock.sentinel.group: 3},
             datetime(2016, 9, 19, 1, 2, 3, tzinfo=pytz.utc),
-        ) == '[Rick & Morty] 1 new alert since Sept. 19, 2016, 1:02 a.m. UTC'
+        ) == 'BAR-1 - 1 new alert since Sept. 19, 2016, 1:02 a.m. UTC'
 
     @mock.patch.object(MailPlugin, 'notify', side_effect=MailPlugin.notify, autospec=True)
     def test_notify_digest(self, notify):
@@ -302,7 +304,7 @@ class MailPluginTest(TestCase):
 
         msg = mail.outbox[0]
 
-        assert msg.subject.startswith('[Example prefix] [foo Bar]')
+        assert msg.subject.startswith('[Example prefix]')
 
     def test_assignment(self):
         activity = Activity.objects.create(
@@ -322,7 +324,7 @@ class MailPluginTest(TestCase):
 
         msg = mail.outbox[0]
 
-        assert msg.subject == 'Re: [Sentry] [foo Bar] error: \xe3\x81\x93\xe3\x82\x93\xe3\x81\xab\xe3\x81\xa1\xe3\x81\xaf'
+        assert msg.subject == 'Re: [Sentry] BAR-1 - \xe3\x81\x93\xe3\x82\x93\xe3\x81\xab\xe3\x81\xa1\xe3\x81\xaf'
         assert msg.to == [self.user.email]
 
     def test_note(self):
@@ -347,7 +349,43 @@ class MailPluginTest(TestCase):
 
         msg = mail.outbox[0]
 
-        assert msg.subject == 'Re: [Sentry] [foo Bar] error: \xe3\x81\x93\xe3\x82\x93\xe3\x81\xab\xe3\x81\xa1\xe3\x81\xaf'
+        assert msg.subject == 'Re: [Sentry] BAR-1 - \xe3\x81\x93\xe3\x82\x93\xe3\x81\xab\xe3\x81\xa1\xe3\x81\xaf'
+        assert msg.to == [self.user.email]
+
+
+class MailPluginSignalsTest(TestCase):
+    @fixture
+    def plugin(self):
+        return MailPlugin()
+
+    def test_user_feedback(self):
+        user_foo = self.create_user('foo@example.com')
+
+        report = UserReport.objects.create(
+            project=self.project,
+            group=self.group,
+            name='Homer Simpson',
+            email='homer.simpson@example.com'
+        )
+
+        self.project.team.organization.member_set.create(user=user_foo)
+
+        with self.tasks():
+            self.plugin.handle_signal(
+                name='user-reports.created',
+                project=self.project,
+                payload={
+                    'report': serialize(report, AnonymousUser(), ProjectUserReportSerializer()),
+                },
+            )
+
+        assert len(mail.outbox) == 1
+
+        msg = mail.outbox[0]
+
+        assert msg.subject == '[Sentry] {} - New Feedback from Homer Simpson'.format(
+            self.group.qualified_short_id,
+        )
         assert msg.to == [self.user.email]
 
 
@@ -355,7 +393,7 @@ class ActivityEmailTestCase(TestCase):
     def get_fixture_data(self, users):
         organization = self.create_organization(owner=self.create_user())
         team = self.create_team(organization=organization)
-        project = self.create_project(organization=organization, team=team)
+        project = self.create_project(organization=organization, teams=[team])
         group = self.create_group(project=project)
 
         users = [self.create_user() for _ in range(users)]

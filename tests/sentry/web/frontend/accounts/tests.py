@@ -139,6 +139,7 @@ class SettingsTest(TestCase):
         params = self.params()
         params['password'] = 'admin'
         params['new_password'] = 'foobar'
+        params['verify_new_password'] = 'foobar'
 
         resp = self.client.post(self.path, params)
         assert resp.status_code == 302
@@ -151,6 +152,7 @@ class SettingsTest(TestCase):
 
         params = self.params()
         params['new_password'] = 'foobar'
+        params['verify_new_password'] = 'foobar'
 
         resp = self.client.post(self.path, params)
         assert resp.status_code == 200
@@ -168,6 +170,7 @@ class SettingsTest(TestCase):
         params['email'] = user.email
         params['password'] = 'admin'
         params['new_password'] = 'foobar'
+        params['verify_new_password'] = 'foobar'
 
         resp = self.client.post(self.path, params)
         assert resp.status_code == 302
@@ -211,6 +214,95 @@ class SettingsTest(TestCase):
         assert resp.context['form'].errors
         user = User.objects.get(id=self.user.id)
         assert user.email == 'admin@localhost'
+
+    def test_settings_renders_with_verify_new_password(self):
+        user = self.create_user('foo@example.com')
+        self.login_as(user)
+        path = reverse('sentry-account-settings')
+        resp = self.client.get(path)
+        assert resp.status_code == 200
+        self.assertTemplateUsed('sentry/account/settings.html')
+        form = resp.context['form']
+        assert form.errors == {}
+        for field in ('name', 'email', 'new_password', 'verify_new_password', 'password'):
+            assert field in form.fields
+
+        self.assertContains(resp, 'New password')
+        self.assertContains(resp, 'Verify new password')
+
+    def test_settings_renders_without_new_password(self):
+        user = self.create_user('foo@example.com')
+        user.update(is_managed=True)
+        self.login_as(user)
+        path = reverse('sentry-account-settings')
+        resp = self.client.get(path)
+        assert resp.status_code == 200
+        self.assertTemplateUsed('sentry/account/settings.html')
+        form = resp.context['form']
+        assert form.errors == {}
+        for field in ('new_password', 'verify_new_password'):
+            assert field not in form.fields
+
+    def test_cannot_change_password_without_verify_password(self):
+        self.login_as(self.user)
+
+        params = self.params()
+        params['new_password'] = 'foobar'
+
+        resp = self.client.post(self.path, params)
+        assert resp.status_code == 200
+        self.assertTemplateUsed('sentry/account/settings.html')
+        assert resp.context['form'].errors
+        user = User.objects.get(id=self.user.id)
+        assert not user.check_password('foobar')
+
+    def test_cannot_change_password_with_unequal_verify_password(self):
+        self.login_as(self.user)
+
+        params = self.params()
+        params['new_password'] = 'foobar'
+        params['verify_new_password'] = 'foobars'
+
+        resp = self.client.post(self.path, params)
+        assert resp.status_code == 200
+        self.assertTemplateUsed('sentry/account/settings.html')
+        assert resp.context['form'].errors
+        user = User.objects.get(id=self.user.id)
+        assert not user.check_password('foobar')
+        assert not user.check_password('foobars')
+
+    def test_password_hash_invalidated_when_email_changes(self):
+        self.login_as(self.user)
+
+        LostPasswordHash.objects.create(user=self.user)
+
+        params = self.params()
+        params['password'] = 'admin'
+        params['email'] = 'bizbaz@example.com'
+
+        resp = self.client.post(self.path, params)
+        assert resp.status_code == 302
+        user = User.objects.get(id=self.user.id)
+        assert user.email == 'bizbaz@example.com'
+        assert not LostPasswordHash.objects.filter(user=self.user).exists()
+
+    def test_password_hash_invalidated_when_password_changes(self):
+        old_nonce = self.user.session_nonce
+        self.login_as(self.user)
+
+        LostPasswordHash.objects.create(user=self.user)
+
+        params = self.params()
+        params['password'] = 'admin'
+        params['new_password'] = 'foobar'
+        params['verify_new_password'] = 'foobar'
+
+        resp = self.client.post(self.path, params)
+        assert resp.status_code == 302
+        user = User.objects.get(id=self.user.id)
+        assert user.check_password('foobar')
+        assert user.session_nonce != old_nonce
+        assert not LostPasswordHash.objects.filter(user=self.user).exists()
 
 
 class ListIdentitiesTest(TestCase):
@@ -273,6 +365,18 @@ class RecoverPasswordTest(TestCase):
         assert 'email' in resp.context
         send_recover_mail.call_count == 1
 
+    @mock.patch('sentry.models.LostPasswordHash.send_email')
+    def test_lost_password_hash_invalid_after_successful_login(self, send_recover_mail):
+        resp = self.client.post(self.path, {
+            'user': self.user.username
+        })
+        assert resp.status_code == 200
+        send_recover_mail.call_count == 1
+
+        assert LostPasswordHash.objects.get(user=self.user).is_valid()
+        self.login_as(self.user)
+        assert not LostPasswordHash.objects.filter(user=self.user).exists()
+
 
 class RecoverPasswordConfirmTest(TestCase):
     def setUp(self):
@@ -307,6 +411,7 @@ class RecoverPasswordConfirmTest(TestCase):
         user = User.objects.get(id=self.user.id)
         assert user.check_password('bar')
         assert user.session_nonce != old_nonce
+        assert not LostPasswordHash.objects.filter(user=user).exists()
 
 
 class ConfirmEmailSendTest(TestCase):
@@ -357,6 +462,7 @@ class ConfirmEmailTest(TestCase):
         self.assertRedirects(resp, reverse('sentry-account-settings-emails'), status_code=302)
         email = self.user.emails.first()
         assert email.is_verified
+        assert not email.hash_is_valid()
 
 
 class DisconnectIdentityTest(TestCase):

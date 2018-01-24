@@ -58,7 +58,7 @@ class GroupTagExportView(ProjectView, CsvMixin, EnvironmentMixin):
             item.first_seen.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
         )
 
-    def get(self, request, organization, project, team, group_id, key):
+    def get(self, request, organization, project, group_id, key):
         try:
             # TODO(tkaemming): This should *actually* redirect, see similar
             # comment in ``GroupEndpoint.convert_args``.
@@ -92,7 +92,7 @@ class GroupTagExportView(ProjectView, CsvMixin, EnvironmentMixin):
             callbacks = []
 
         queryset = RangeQuerySetWrapper(
-            tagstore.get_group_tag_value_qs(group.id, environment_id, lookup_key),
+            tagstore.get_group_tag_value_qs(group.project_id, group.id, environment_id, lookup_key),
             callbacks=callbacks,
         )
 

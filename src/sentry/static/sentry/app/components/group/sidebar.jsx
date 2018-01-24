@@ -1,6 +1,8 @@
 import PropTypes from 'prop-types';
 import React from 'react';
 
+import createReactClass from 'create-react-class';
+
 import ApiMixin from '../../mixins/apiMixin';
 import SuggestedOwners from './suggestedOwners';
 import GroupParticipants from './participants';
@@ -12,7 +14,9 @@ import TagDistributionMeter from './tagDistributionMeter';
 import LoadingError from '../../components/loadingError';
 import {t, tct} from '../../locale';
 
-const GroupSidebar = React.createClass({
+const GroupSidebar = createReactClass({
+  displayName: 'GroupSidebar',
+
   propTypes: {
     group: PropTypes.object,
     event: PropTypes.object,
@@ -190,18 +194,13 @@ const GroupSidebar = React.createClass({
     let project = this.getProject();
     let projectId = project.slug;
     let orgId = this.getOrganization().slug;
-    let defaultEnvironment = project.defaultEnvironment;
     let group = this.getGroup();
 
     return (
       <div className="group-stats">
         <SuggestedOwners event={this.props.event} />
 
-        <GroupReleaseStats
-          group={group}
-          location={this.context.location}
-          defaultEnvironment={defaultEnvironment}
-        />
+        <GroupReleaseStats group={group} location={this.context.location} />
 
         {this.renderPluginIssue()}
 

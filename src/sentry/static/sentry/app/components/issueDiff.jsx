@@ -1,4 +1,6 @@
-import React, {PropTypes} from 'react';
+import React from 'react';
+import PropTypes from 'prop-types';
+import createReactClass from 'create-react-class';
 import classNames from 'classnames';
 
 import ApiMixin from '../mixins/apiMixin';
@@ -7,7 +9,9 @@ import rawStacktraceContent from './events/interfaces/rawStacktraceContent';
 
 import '../../less/components/issueDiff.less';
 
-const IssueDiff = React.createClass({
+const IssueDiff = createReactClass({
+  displayName: 'IssueDiff',
+
   propTypes: {
     baseIssueId: PropTypes.string.isRequired,
     targetIssueId: PropTypes.string.isRequired,
@@ -41,7 +45,7 @@ const IssueDiff = React.createClass({
 
     // Fetch component and event data
     Promise.all([
-      import('./splitDiff'),
+      import(/* webpackChunkName: "splitDiff" */ './splitDiff'),
       this.fetchData(baseIssueId, baseEventId),
       this.fetchData(targetIssueId, targetEventId),
     ]).then(([{default: SplitDiffAsync}, baseEvent, targetEvent]) => {
