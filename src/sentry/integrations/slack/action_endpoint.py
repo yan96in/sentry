@@ -115,17 +115,7 @@ class SlackActionEndpoint(Endpoint):
     def post(self, request):
         logging_data = {}
 
-        try:
-            data = request.DATA
-        except (ValueError, TypeError):
-            logger.error('slack.action.invalid-json', extra=logging_data, exc_info=True)
-            return self.respond(status=400)
-
-        try:
-            data = json.loads(data['payload'])
-        except (KeyError, IndexError, TypeError, ValueError):
-            logger.error('slack.action.invalid-payload', extra=logging_data, exc_info=True)
-            return self.respond(status=400)
+        data = json.loads(request.DATA['payload'])
 
         event_id = data.get('event_id')
         team_id = data.get('team', {}).get('id')
