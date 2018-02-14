@@ -94,7 +94,7 @@ class EventFileCommittersEndpoint(ProjectEndpoint):
             del c['author']
         return committer_commit_list
 
-    def _get_committers(self, annotated_frames, commits):
+    def _get_committers(self, organization, annotated_frames, commits):
         # extract the unique committers and return their serialized sentry accounts
         committers = defaultdict(int)
 
@@ -110,7 +110,7 @@ class EventFileCommittersEndpoint(ProjectEndpoint):
 
         # organize them by this heuristic (first frame is worth 5 points, second is worth 4, etc.)
         sorted_committers = sorted(committers, key=committers.get)
-        users_by_author = get_users_for_commits(commits)
+        users_by_author = get_users_for_commits(commits, organization.id)
 
         user_dicts = [
             {
@@ -191,7 +191,7 @@ class EventFileCommittersEndpoint(ProjectEndpoint):
             {commit for match in commit_path_matches for commit in commit_path_matches[match]}
         )
 
-        committers = self._get_committers(annotated_frames, relevant_commits)
+        committers = self._get_committers(annotated_frames, project.organization, relevant_commits)
 
         # serialize the commit objects
         serialized_annotated_frames = [
