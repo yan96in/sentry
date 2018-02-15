@@ -191,7 +191,7 @@ class EventFileCommittersEndpoint(ProjectEndpoint):
             {commit for match in commit_path_matches for commit in commit_path_matches[match]}
         )
 
-        committers = self._get_committers(annotated_frames, project.organization, relevant_commits)
+        committers = self._get_committers(project.organization, annotated_frames, relevant_commits)
 
         # serialize the commit objects
         serialized_annotated_frames = [
