@@ -115,7 +115,7 @@ def build_action_text(identity, action):
     )
 
 
-def build_attachment(group, event=None, identity=None, actions=None):
+def build_attachment(group, event=None, identity=None, actions=None, rules=None):
     # XXX(dcramer): options are limited to 100 choices, even when nested
     status = group.get_status()
     assignees = get_assignees(group)
@@ -186,6 +186,21 @@ def build_attachment(group, event=None, identity=None, actions=None):
         color = ACTIONED_ISSUE_COLOR
         payload_actions = []
 
+    ts = int(time.mktime(group.last_seen.timetuple()))
+
+    if event:
+        event_ts = int(time.mktime(event.datetime.timetuple()))
+        ts = max(ts, event_ts)
+
+    footer = u'{}'.format(group.qualified_short_id)
+
+    if rules:
+        rule = rules.pop(0)
+        footer += u' via {}'.format(rule.label)
+
+    if rules:
+        footer += u' (+{} other)'.format(len(rules))
+
     return {
         'fallback': u'[{}] {}'.format(group.project.slug, group.title),
         'title': build_attachment_title(group, event),
@@ -194,11 +209,8 @@ def build_attachment(group, event=None, identity=None, actions=None):
         'mrkdwn_in': ['text'],
         'callback_id': json.dumps({'issue': group.id}),
         'footer_icon': logo_url,
-        'footer': u'{} / {}'.format(
-            group.organization.slug,
-            group.project.slug,
-        ),
-        'ts': int(time.mktime(group.last_seen.timetuple())),
+        'footer': footer,
+        'ts': ts,
         'color': color,
         'actions': payload_actions,
     }
