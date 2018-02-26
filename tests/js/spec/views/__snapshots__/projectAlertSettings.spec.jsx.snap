@@ -108,6 +108,7 @@ exports[`ProjectAlertSettings render() renders 1`] = `
         Object {
           "digestsMaxDelay": 60,
           "digestsMinDelay": 5,
+          "features": Array [],
           "id": "2",
           "name": "Project Name",
           "slug": "project-slug",

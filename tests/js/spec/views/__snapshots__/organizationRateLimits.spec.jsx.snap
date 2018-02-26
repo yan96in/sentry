@@ -113,6 +113,7 @@ exports[`OrganizationStats renders 1`] = `
         "2": Object {
           "digestsMaxDelay": 60,
           "digestsMinDelay": 5,
+          "features": Array [],
           "id": "2",
           "name": "Project Name",
           "slug": "project-slug",
@@ -178,6 +179,7 @@ exports[`OrganizationStats renders 1`] = `
           "2": Object {
             "digestsMaxDelay": 60,
             "digestsMinDelay": 5,
+            "features": Array [],
             "id": "2",
             "name": "Project Name",
             "slug": "project-slug",

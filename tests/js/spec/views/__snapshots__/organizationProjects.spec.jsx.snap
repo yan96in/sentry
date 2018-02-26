@@ -116,6 +116,7 @@ exports[`OrganizationProjectsView render() Should render the projects in the sto
         Object {
           "digestsMaxDelay": 60,
           "digestsMinDelay": 5,
+          "features": Array [],
           "id": "2",
           "name": "Project Name",
           "slug": "project-slug",
@@ -325,6 +326,7 @@ exports[`OrganizationProjectsView render() Should render the projects in the sto
                                     Object {
                                       "digestsMaxDelay": 60,
                                       "digestsMinDelay": 5,
+                                      "features": Array [],
                                       "id": "2",
                                       "name": "Project Name",
                                       "slug": "project-slug",
@@ -401,6 +403,7 @@ exports[`OrganizationProjectsView render() Should render the projects in the sto
                                               Object {
                                                 "digestsMaxDelay": 60,
                                                 "digestsMinDelay": 5,
+                                                "features": Array [],
                                                 "id": "2",
                                                 "name": "Project Name",
                                                 "slug": "project-slug",
@@ -445,6 +448,7 @@ exports[`OrganizationProjectsView render() Should render the projects in the sto
                                     Object {
                                       "digestsMaxDelay": 60,
                                       "digestsMinDelay": 5,
+                                      "features": Array [],
                                       "id": "2",
                                       "name": "Project Name",
                                       "slug": "project-slug",
