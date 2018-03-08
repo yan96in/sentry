@@ -35,4 +35,25 @@ GUIDES = {
             },
         ],
     },
+    'event_issue': {
+        'id': 2,
+        'page': 'settings',
+        'cue': _('Click here to learn about issues and events'),
+        'required_targets': ['issues'],
+        'steps': [
+            {
+                'title': _('1. Issues at Sentry'),
+                'message': _(
+                    'Issues are made up of a collection of events'),
+                'target': 'issues',
+            },
+            {
+                'title': _('2. Events at Sentry'),
+                'message': _(
+                    'Events are each individual error sent to Sentry'),
+                'target': 'events',
+            },
+        ]
+    },
+
 }
