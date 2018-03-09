@@ -10,6 +10,7 @@ import classNames from 'classnames';
 import ApiMixin from '../../mixins/apiMixin';
 import GroupStore from '../../stores/groupStore';
 import EnvironmentStore from '../../stores/environmentStore';
+import HookStore from '../../stores/hookStore';
 import LoadingError from '../../components/loadingError';
 import LoadingIndicator from '../../components/loadingIndicator';
 import ProjectState from '../../mixins/projectState';
@@ -476,6 +477,18 @@ const Stream = createReactClass({
         this.transitionTo
       );
     }
+
+    // Ignore saved searches
+    if (this.state.savedSearchList.map(s => s.query == this.state.query).length > 0) {
+      let {orgId, projectId} = this.props.params;
+      HookStore.get('analytics:event').forEach(cb =>
+        cb('issue.search', {
+          query: this.state.queruy,
+          organization_id: orgId,
+          project_id: projectId,
+        })
+      );
+    }
   },
 
   onSortChange(sort) {
@@ -617,6 +630,7 @@ const Stream = createReactClass({
           orgId={orgId}
           projectId={projectId}
           statsPeriod={statsPeriod}
+          query={this.state.query}
         />
       );
     });
