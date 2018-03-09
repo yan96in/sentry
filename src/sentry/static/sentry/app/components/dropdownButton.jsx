@@ -4,9 +4,9 @@ import styled from 'react-emotion';
 import Button from './buttons/button';
 import InlineSvg from './inlineSvg';
 
-const DropdownButton = ({isOpen, children}) => {
+const DropdownButton = ({children, ...props}) => {
   return (
-    <StyledButton isOpen={isOpen}>
+    <StyledButton {...props}>
       <StyledChevronDown />
       {children}
     </StyledButton>
@@ -15,6 +15,7 @@ const DropdownButton = ({isOpen, children}) => {
 
 DropdownButton.propTypes = {
   isOpen: PropTypes.bool,
+  size: PropTypes.oneOf(['small', 'xsmall', 'large']),
 };
 
 const StyledChevronDown = styled(props => (
@@ -30,8 +31,14 @@ const StyledButton = styled(props => <Button {...props} />)`
   z-index: 1;
   box-shadow: none;
 
-  &, &:hover { border-bottom-color: ${p =>
-    p.isOpen ? 'transparent' : p.theme.borderDark};}
+  &:hover {
+    border-color: ${p => (p.isOpen ? p.theme.borderLight : p.theme.borderDark)};
+  }
+
+  &,
+  &:hover {
+    border-bottom-color: ${p => (p.isOpen ? 'transparent' : p.theme.borderDark)};
+  }
 `;
 
 export default DropdownButton;
