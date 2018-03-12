@@ -455,14 +455,21 @@ window.TestStubs = {
     };
   },
 
-  Group: () => {
+  Group: params => {
+    let project = TestStubs.Project();
     return {
       id: '1',
       stats: {
         '24h': [[1517281200, 2], [1517310000, 1]],
         '30d': [[1514764800, 1], [1515024000, 122]],
       },
+      project: {
+        id: project.id,
+        slug: project.slug,
+      },
       tags: [],
+      assignedTo: null,
+      ...params,
     };
   },
 
@@ -608,6 +615,7 @@ window.TestStubs = {
       securityToken: 'security-token',
       securityTokenHeader: 'x-security-header',
       verifySSL: true,
+      teams: [],
       ...params,
     };
   },
@@ -708,42 +716,51 @@ window.TestStubs = {
       id: '1',
       slug: 'team-slug',
       name: 'Team Name',
-      projects: [],
       ...params,
     };
   },
 
-  UserDetails: params => ({
-    username: 'billyfirefoxusername@test.com',
-    emails: [
-      {is_verified: false, id: '20', email: 'billyfirefox@test.com2'},
-      {is_verified: true, id: '8', email: 'billyfirefox2@test.com'},
-      {is_verified: false, id: '7', email: 'billyfirefox@test.com'},
-    ],
-    isManaged: false,
-    lastActive: '2018-01-25T21:00:19.946Z',
-    identities: [],
-    id: '4',
-    isActive: true,
-    has2fa: false,
-    name: 'Firefox Billy',
-    avatarUrl:
-      'https://secure.gravatar.com/avatar/5df53e28e63099658c1ba89b8e9a7cf4?s=32&d=mm',
-    authenticators: [],
-    dateJoined: '2018-01-11T00:30:41.366Z',
-    options: {
-      timezone: 'UTC',
-      seenReleaseBroadcast: null,
-      stacktraceOrder: 'default',
-      language: 'en',
-      clock24Hours: false,
-    },
-    avatar: {avatarUuid: null, avatarType: 'letter_avatar'},
-    lastLogin: '2018-01-25T19:57:46.973Z',
-    permissions: [],
-    email: 'billyfirefox@test.com',
+  User: params => ({
+    id: '1',
+    username: 'foo@example.com',
+    email: 'foo@example.com',
+    name: 'Foo Bar',
     ...params,
   }),
+
+  UserDetails: params => {
+    return TestStubs.User({
+      username: 'billyfirefoxusername@test.com',
+      emails: [
+        {is_verified: false, id: '20', email: 'billyfirefox@test.com2'},
+        {is_verified: true, id: '8', email: 'billyfirefox2@test.com'},
+        {is_verified: false, id: '7', email: 'billyfirefox@test.com'},
+      ],
+      isManaged: false,
+      lastActive: '2018-01-25T21:00:19.946Z',
+      identities: [],
+      id: '4',
+      isActive: true,
+      has2fa: false,
+      name: 'Firefox Billy',
+      avatarUrl:
+        'https://secure.gravatar.com/avatar/5df53e28e63099658c1ba89b8e9a7cf4?s=32&d=mm',
+      authenticators: [],
+      dateJoined: '2018-01-11T00:30:41.366Z',
+      options: {
+        timezone: 'UTC',
+        seenReleaseBroadcast: null,
+        stacktraceOrder: 'default',
+        language: 'en',
+        clock24Hours: false,
+      },
+      avatar: {avatarUuid: null, avatarType: 'letter_avatar'},
+      lastLogin: '2018-01-25T19:57:46.973Z',
+      permissions: [],
+      email: 'billyfirefox@test.com',
+      ...params,
+    });
+  },
 };
 
 // this is very commonly used, so expose it globally

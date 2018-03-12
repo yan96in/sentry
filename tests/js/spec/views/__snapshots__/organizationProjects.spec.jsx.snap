@@ -167,6 +167,7 @@ exports[`OrganizationProjectsView render() Should render the projects in the sto
           ],
           "slug": "project-slug",
           "subjectTemplate": "[$project] \${tag:level}: $title",
+          "teams": Array [],
           "verifySSL": true,
         },
       ]
@@ -439,6 +440,7 @@ exports[`OrganizationProjectsView render() Should render the projects in the sto
                                       ],
                                       "slug": "project-slug",
                                       "subjectTemplate": "[$project] \${tag:level}: $title",
+                                      "teams": Array [],
                                       "verifySSL": true,
                                     }
                                   }
@@ -535,6 +537,7 @@ exports[`OrganizationProjectsView render() Should render the projects in the sto
                                                 ],
                                                 "slug": "project-slug",
                                                 "subjectTemplate": "[$project] \${tag:level}: $title",
+                                                "teams": Array [],
                                                 "verifySSL": true,
                                               }
                                             }
@@ -594,6 +597,7 @@ exports[`OrganizationProjectsView render() Should render the projects in the sto
                                                   ],
                                                   "slug": "project-slug",
                                                   "subjectTemplate": "[$project] \${tag:level}: $title",
+                                                  "teams": Array [],
                                                   "verifySSL": true,
                                                 }
                                               }
@@ -653,6 +657,7 @@ exports[`OrganizationProjectsView render() Should render the projects in the sto
                                                     ],
                                                     "slug": "project-slug",
                                                     "subjectTemplate": "[$project] \${tag:level}: $title",
+                                                    "teams": Array [],
                                                     "verifySSL": true,
                                                   }
                                                 }
@@ -715,6 +720,7 @@ exports[`OrganizationProjectsView render() Should render the projects in the sto
                                       ],
                                       "slug": "project-slug",
                                       "subjectTemplate": "[$project] \${tag:level}: $title",
+                                      "teams": Array [],
                                       "verifySSL": true,
                                     }
                                   }
