@@ -184,12 +184,10 @@ exports[`OrganizationTeamProjects Should render 1`] = `
                                           <Button
                                             className="glamor-9 glamor-10"
                                             disabled={false}
-                                            isOpen={false}
                                           >
                                             <button
                                               className="glamor-9 glamor-10 button button-default"
                                               disabled={false}
-                                              isOpen={false}
                                               onClick={[Function]}
                                               role="button"
                                             >
