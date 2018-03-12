@@ -41,7 +41,6 @@ import OrganizationActivity from './views/organizationActivity';
 import OrganizationApiKeyDetailsView from './views/settings/organization/apiKeys/organizationApiKeyDetailsView';
 import OrganizationApiKeysView from './views/settings/organization/apiKeys/organizationApiKeysView';
 import OrganizationAuditLogView from './views/settings/organization/auditLog/auditLogView';
-import OrganizationAuthView from './views/settings/organization/auth/organizationAuthView';
 import OrganizationContext from './views/organizationContext';
 import OrganizationCreate from './views/organizationCreate';
 import OrganizationDashboard from './views/organizationDashboard';
@@ -360,15 +359,15 @@ const projectSettingsRoutes = (
       name="Integration Details"
       component={errorHandler(ProjectPluginDetails)}
     />
-    // XXX(epurkhiser): This lives under project configurations for now until
-    // we've migrated enough integrations that it can live at the org level.
+
+    {/* XXX(epurkhiser): This lives under project configurations for now until we've migrated enough integrations that it can live at the org level.*/}
     <Route
       path="integrations/:providerKey/"
       name="Integration Configuration"
       componentPromise={() =>
         import(/* webpackChunkName: "OrganizationIntegrationConfig" */ './views/organizationIntegrationConfig')}
       component={errorHandler(LazyLoad)}
-    />,
+    />
     <Route
       path="install/"
       name="Basic Configuration"
@@ -434,7 +433,9 @@ function routes() {
       <Route
         path="auth/"
         name="Auth Providers"
-        component={errorHandler(OrganizationAuthView)}
+        componentPromise={() =>
+          import(/*webpackChunkName: OrganizationAuthView*/ './views/settings/organization/auth/organizationAuthView')}
+        component={errorHandler(LazyLoad)}
       />
 
       <Route
